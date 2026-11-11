@@ -239,11 +239,7 @@ for (const type of notificationTypes) {
       `/workflows/${type.key}/steps/email/preview_template?environment=development`,
       "POST",
       {
-        recipient: {
-          id: "cadence-template-preview",
-          name: "Development preview",
-          email: "preview@example.invalid",
-        },
+        recipient: "cadence-template-preview",
         data,
       }
     );
