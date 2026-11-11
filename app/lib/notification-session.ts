@@ -7,6 +7,11 @@ import {
   type PreferenceChoice,
   type notificationTypes,
 } from "./notifications";
+import { z } from "zod";
+
+const readAcknowledgement = z.array(
+  z.object({ id: z.string(), read_at: z.string().min(1).nullish() })
+);
 type Access = {
   credentials: NotificationCredentials;
   types: typeof notificationTypes;
@@ -245,10 +250,22 @@ export class NotificationSession {
     const update = (change: Partial<typeof this.state>) =>
       this.update(change, generation);
     try {
-      await this.request(() => "messages/batch/read", "POST", {
-        message_ids: [id],
-      });
+      const response = await this.request<unknown>(
+        () => "messages/batch/read",
+        "POST",
+        {
+          message_ids: [id],
+        }
+      );
       if (generation !== this.generation || !this.active) return false;
+      const acknowledgement = readAcknowledgement.safeParse(response);
+      if (
+        !acknowledgement.success ||
+        !acknowledgement.data.some(
+          (message) => message.id === id && typeof message.read_at === "string"
+        )
+      )
+        throw new Error("Notification read was not confirmed");
       if (this.dismissed.has(id)) return true;
       this.dismissed.add(id);
       const feed = this.state.feed;
