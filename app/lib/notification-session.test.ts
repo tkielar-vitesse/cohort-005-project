@@ -45,12 +45,48 @@ it("keeps rows and unread count on failed read, and confirms a dismissal only on
   expect(session.state.feed?.entries).toEqual([item]);
   expect(session.state.error).toContain("Could not dismiss");
   request.mockImplementation((_c, path) =>
-    path.includes("feeds") ? new Promise(() => {}) : Promise.resolve({})
+    path.includes("feeds")
+      ? new Promise(() => {})
+      : Promise.resolve([{ id: "one", read_at: "2026-01-02T00:00:00Z" }])
   );
-  await session.read("one");
-  await session.read("one");
+  expect(await session.read("one")).toBe(true);
+  expect(await session.read("one")).toBe(true);
+  expect(session.state.feed?.entries).toEqual([]);
   expect(session.state.feed?.meta.unread_count).toBe(2);
 });
+
+it.each([
+  { response: [], description: "an empty acknowledgement" },
+  { response: [{ id: "one", read_at: null }], description: "an unread target" },
+  { response: [{ id: "one" }], description: "a missing read timestamp" },
+  {
+    response: [{ id: "other", read_at: "2026-01-02T00:00:00Z" }],
+    description: "a different Notification",
+  },
+  { response: {}, description: "a malformed acknowledgement" },
+])(
+  "retains the row and count when a successful read response contains $description",
+  async ({ response }) => {
+    const request = vi
+      .fn()
+      .mockResolvedValue({ entries: [item], meta: { unread_count: 3 } });
+    const session = new NotificationSession("1", {
+      identify: async () => auth,
+      request,
+    });
+    await session.start();
+    request.mockClear();
+    request.mockResolvedValueOnce(response);
+
+    expect(await session.read("one")).toBe(false);
+    expect(session.state.feed).toEqual({
+      entries: [item],
+      meta: { unread_count: 3 },
+    });
+    expect(session.state.error).toContain("Could not dismiss");
+    expect(request).toHaveBeenCalledTimes(1);
+  }
+);
 
 it("never restores a confirmed dismissal from a poll started before the write", async () => {
   const stale = deferred<unknown>();
@@ -66,7 +102,13 @@ it("never restores a confirmed dismissal from a poll started before the write", 
   const pending = session.refresh();
   await Promise.resolve();
   await Promise.resolve();
-  request.mockResolvedValue({ entries: [], meta: { unread_count: 0 } });
+  request.mockImplementation((_c, path) =>
+    Promise.resolve(
+      path === "messages/batch/read"
+        ? [{ id: "one", read_at: "2026-01-02T00:00:00Z" }]
+        : { entries: [], meta: { unread_count: 0 } }
+    )
+  );
   await session.read("one");
   stale.resolve({ entries: [item], meta: { unread_count: 1 } });
   await pending;
