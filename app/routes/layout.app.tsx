@@ -1,4 +1,8 @@
-import { Outlet } from "react-router";
+import { Outlet, useNavigation } from "react-router";
+import {
+  NotificationBell,
+  NotificationsProvider,
+} from "~/components/notifications";
 import type { Route } from "./+types/layout.app";
 import { Sidebar } from "~/components/sidebar";
 import { DevUI } from "~/components/dev-ui";
@@ -185,7 +189,11 @@ export async function loader({ request }: Route.LoaderArgs) {
           course.courseId
         );
         const totalLessons = getTotalLessonCount(course.courseId);
-        const progress = calculateProgress(currentUserId, course.courseId, false);
+        const progress = calculateProgress(
+          currentUserId,
+          course.courseId,
+          false
+        );
         return {
           courseId: course.courseId,
           title: course.courseTitle,
@@ -227,6 +235,10 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     isTeamAdmin: userIsTeamAdmin,
   } = loaderData;
 
+  const navigation = useNavigation();
+  const switching = /\/api\/(switch-user|logout)/.test(
+    navigation.formAction ?? ""
+  );
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar
@@ -235,7 +247,16 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         isTeamAdmin={userIsTeamAdmin}
       />
       <main className="flex-1 overflow-y-auto">
-        <Outlet />
+        {currentUser && !switching ? (
+          <NotificationsProvider key={currentUser.id} personId={currentUser.id}>
+            <header className="flex justify-end border-b px-6 py-3">
+              <NotificationBell />
+            </header>
+            <Outlet />
+          </NotificationsProvider>
+        ) : switching ? null : (
+          <Outlet />
+        )}
       </main>
       <DevUI
         users={users}
