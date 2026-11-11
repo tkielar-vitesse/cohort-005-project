@@ -10,6 +10,7 @@
     "pull": "ai-hero-cli pull --upstream=https://github.com/ai-hero-dev/cohort-005-project.git",
     "build": "react-router build",
     "dev": "react-router dev",
+    "prototype:notifications": "react-router dev --host 127.0.0.1",
     "start": "react-router-serve ./build/server/index.js",
     "request-logger": "tsx request-logger/proxy.ts",
     "typecheck": "react-router typegen && tsc",
@@ -23,6 +24,7 @@
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
+    "@knocklabs/node": "^1.41.1",
     "@monaco-editor/react": "^4.7.0",
     "@react-router/node": "8.3.0",
     "@react-router/serve": "8.3.0",

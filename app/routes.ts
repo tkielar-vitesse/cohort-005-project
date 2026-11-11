@@ -52,6 +52,7 @@ export default [
   route("login", "routes/login.tsx"),
   route("api/switch-user", "routes/api.switch-user.ts"),
   route("api/logout", "routes/api.logout.ts"),
+  route("api/notification-prototype", "routes/api.notification-prototype.ts"),
   route("api/video-tracking", "routes/api.video-tracking.ts"),
   route("api/set-dev-country", "routes/api.set-dev-country.ts"),
 ] satisfies RouteConfig;
