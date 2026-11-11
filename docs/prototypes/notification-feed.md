@@ -12,13 +12,13 @@ Chosen layout: **A — header popover**, inside the existing Cadence shell, alon
 
 Run `npm run prototype:notifications` with the already-provisioned Knock Development credentials in ignored `.env`. Open `/dashboard?variant=A` and select a user in DevUI. Only the selected layout is active now; the alternatives and switcher remain in the earlier commit. This is a development-only prototype; the API rejects production and the prototype does not render in production.
 
-Select Emma Wilson or James Park for existing real Discussion Reply Notifications. Sarah Chen has an empty feed and two stored Discussion Replies available in the expandable prototype controls. Those controls can replay existing replies through the committed feed-only Knock workflow; switch to the named recipient to see delivery. Replay is idempotent per stored reply. This restores the same helper used by the earlier vendor-fit spike. It writes no Cadence database records and sends no email or push.
+Select Emma Wilson or James Park for existing real Discussion Reply Notifications. Sarah Chen has an empty feed and two stored Discussion Replies available in the expandable prototype controls. Those controls can replay existing replies through the committed feed-only Knock workflow; switch to the named recipient to see delivery. Each replay click uses a fresh event key and creates a new Development Notification, including after an earlier replay was read or dismissed. This restores the same helper used by the earlier vendor-fit spike. It writes no Cadence database records and sends no email or push.
 
-The popover uses the real headless feed and signed session identity. There are no simulated feed items. Polling is every five seconds. Only the public key and a short-lived signed user token reach the browser. DevUI identity changes clear the old feed and cancel pending polling requests.
+The popover uses the real headless feed and signed session identity. There are no simulated feed items. Polling is every five seconds. Only the public key and a short-lived signed user token reach the browser. Credentials refresh every ten minutes, ahead of the fifteen-minute token expiry. DevUI identity changes clear the old feed and cancel pending polling requests.
 
 Behavior chosen in the human review:
 
-- Badge counts **unread**, capped visually at 99+. Seen does not clear it.
+- Badge counts **unread**, capped visually at 99+, and remains visible at zero (loading displays an ellipsis). Seen does not clear it.
 - Opening the popover marks the displayed rows seen. They remain unread. Closing the popover does not dismiss its Notifications.
 - Row click marks read and navigates to its stored local Cadence destination. Read failures leave the row in place and surface an error.
 - Show **unread Notifications only**, with no All/Unread tabs or read-history view. Fetch using Knock's `status=unread` filter so read history cannot crowd unread rows off the first page ([API reference](https://docs.knock.app/api-reference/users)).
@@ -37,6 +37,10 @@ Read/seen changes persist in Knock Development. This deliberately overrides the 
 - Initial server rendering of `/dashboard?variant=A` returned 200 and included the prototype for all three selected identities.
 - Browser host unavailable. No visual inspection or browser interaction is claimed. Client click/keyboard/read/seen behavior still needs human review.
 - After the chosen-layout update: typecheck passes; tests remain 806 passing with the same four Windows shell failures. Live signed API verification temporarily marked an already-read Emma Notification unread, verified `status=unread` returned it, marked it read through the dismissal endpoint, and verified it disappeared from the unread result and the badge returned to zero. Its original read state was restored. Server rendering returns 200 with the selected unread prototype. This verifies the vendor operations, not a browser click.
+
+## Replay repair verification
+
+The original replay key was fixed per stored Discussion Reply. Knock therefore reused an already-read Notification, which the chosen unread-only Feed correctly hid. Replays now use a fresh UUID per explicit click. Live verification replayed the same stored Sarah Chen Discussion Reply twice: Emma Wilson’s unread count increased from 0 to 2. Both fresh Notifications were left unread for human review. Typecheck passes; tests remain 806 passing and four existing Windows shell failures. No browser verification is claimed.
 
 ## Decision status
 

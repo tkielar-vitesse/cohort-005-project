@@ -76,18 +76,25 @@ function Prototype({
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/notification-prototype", { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok)
-          throw new Error(
-            `Feed setup failed (${response.status}). Check Development credentials.`
-          );
-        setContext(await response.json());
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted) setError(String(e));
-      });
-    return () => controller.abort();
+    const loadIdentity = () =>
+      fetch("/api/notification-prototype", { signal: controller.signal })
+        .then(async (response) => {
+          if (!response.ok)
+            throw new Error(
+              `Feed setup failed (${response.status}). Check Development credentials.`
+            );
+          setContext(await response.json());
+        })
+        .catch((e) => {
+          if (!controller.signal.aborted) setError(String(e));
+        });
+    void loadIdentity();
+    // Renew before the signed feed token's 15-minute expiry during long reviews.
+    const interval = setInterval(loadIdentity, 10 * 60 * 1000);
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
   }, [userId]);
 
   const api = useCallback(
@@ -254,17 +261,18 @@ function Prototype({
   const badge = feed?.meta.unread_count ?? 0;
   const trigger = (
     <button
-      aria-label={`Notification Feed, ${badge} unread`}
+      aria-label={`Notification Feed, ${feed ? `${badge} unread` : "loading unread count"}`}
       aria-expanded={visible}
       onClick={() => setOpen(!open)}
       className="relative flex items-center gap-2 rounded-lg border bg-background px-4 py-2 text-sm shadow-sm"
     >
       <Bell className="size-4" /> Notifications
-      {badge > 0 && (
-        <span className="rounded-full bg-primary px-2 text-xs text-primary-foreground">
-          {badge > 99 ? "99+" : badge}
-        </span>
-      )}
+      <span
+        aria-hidden="true"
+        className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold tabular-nums text-primary-foreground"
+      >
+        {!feed ? "…" : badge > 99 ? "99+" : badge}
+      </span>
     </button>
   );
 
@@ -398,8 +406,8 @@ function Prototype({
         </Button>
         <p className="my-3">
           Replay an existing Discussion Reply, then switch to its author’s
-          recipient in DevUI. Each stored reply has one stable replay key;
-          previously replayed replies will not create duplicates.
+          recipient in DevUI. Each click creates a fresh Development
+          Notification, even if you already dismissed an earlier replay.
         </p>
         {context?.replies.map((reply) => (
           <button

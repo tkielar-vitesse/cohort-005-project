@@ -2,6 +2,7 @@
 import Knock, { signUserToken } from "@knocklabs/node";
 import { readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
+import { randomUUID } from "node:crypto";
 import { getSqlite } from "~/db";
 import { getCurrentUserId } from "~/lib/session";
 
@@ -96,7 +97,8 @@ export async function triggerReply(actorId: number, replyId: number) {
         url: `/courses/${reply.courseSlug}/lessons/${reply.lessonId}`,
       },
     },
-    { idempotencyKey: `cadence-prototype-reply-${reply.id}` }
+    // Each explicit prototype replay is a new event, including after dismissal.
+    { idempotencyKey: `cadence-prototype-reply-${reply.id}-${randomUUID()}` }
   );
   return { ...result, recipientId: reply.recipientId, replyId: reply.id };
 }
