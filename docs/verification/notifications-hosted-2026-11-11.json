@@ -1,0 +1,576 @@
+{
+  "checkedAt": "2026-11-11T17:18:26.538Z",
+  "environment": "development",
+  "configuration": {
+    "checkedAt": "2026-11-11T17:02:41.095Z",
+    "committed": true,
+    "workflows": [
+      {
+        "key": "cadence-refund-approved",
+        "sha": "/3UNSQoejNs0KI4aTRS2aW9wkP3YYqgKxYXdsZkOgk0=",
+        "active": true,
+        "valid": true,
+        "categories": [],
+        "conditions": null,
+        "channels": [
+          {
+            "ref": "feed",
+            "key": "in-app",
+            "type": "in_app_feed",
+            "conditions": null
+          },
+          {
+            "ref": "email",
+            "key": "knock-email",
+            "type": "email",
+            "conditions": null
+          }
+        ]
+      },
+      {
+        "key": "cadence-refund-declined",
+        "sha": "UT8IeS2hcPTqjwFWa30E3e5AoUvRL3yhq8TU/fEAJnk=",
+        "active": true,
+        "valid": true,
+        "categories": [],
+        "conditions": null,
+        "channels": [
+          {
+            "ref": "feed",
+            "key": "in-app",
+            "type": "in_app_feed",
+            "conditions": null
+          },
+          {
+            "ref": "email",
+            "key": "knock-email",
+            "type": "email",
+            "conditions": null
+          }
+        ]
+      },
+      {
+        "key": "cadence-refund-opened",
+        "sha": "wgvGu6JT+6fojge35pObUUlA7V3h6sMT3i6MloPAd0I=",
+        "active": true,
+        "valid": true,
+        "categories": [],
+        "conditions": null,
+        "channels": [
+          {
+            "ref": "feed",
+            "key": "in-app",
+            "type": "in_app_feed",
+            "conditions": null
+          },
+          {
+            "ref": "email",
+            "key": "knock-email",
+            "type": "email",
+            "conditions": null
+          }
+        ]
+      },
+      {
+        "key": "cadence-seat-claimed",
+        "sha": "oneqPXK+4HHJw4x7G/nLTANkMvmV+LbA3wvPv55wjzE=",
+        "active": true,
+        "valid": true,
+        "categories": [],
+        "conditions": null,
+        "channels": [
+          {
+            "ref": "feed",
+            "key": "in-app",
+            "type": "in_app_feed",
+            "conditions": null
+          }
+        ]
+      },
+      {
+        "key": "cadence-enrollment",
+        "sha": "2JCU682evhFZ1Ca8qvpETqT4uvSo64goaCJZQWDf6/o=",
+        "active": true,
+        "valid": true,
+        "categories": [],
+        "conditions": null,
+        "channels": [
+          {
+            "ref": "feed",
+            "key": "in-app",
+            "type": "in_app_feed",
+            "conditions": null
+          }
+        ]
+      },
+      {
+        "key": "cadence-discussion-question",
+        "sha": "AhtfxTp3AykyLk/rzNfcbb5c4gB0Egzcks52Csz1/Dc=",
+        "active": true,
+        "valid": true,
+        "categories": [],
+        "conditions": null,
+        "channels": [
+          {
+            "ref": "feed",
+            "key": "in-app",
+            "type": "in_app_feed",
+            "conditions": null
+          },
+          {
+            "ref": "email",
+            "key": "knock-email",
+            "type": "email",
+            "conditions": null
+          }
+        ]
+      },
+      {
+        "key": "cadence-discussion-reply",
+        "sha": "S4O1HJE8faH3zTvaUsjYfNYEpwD1EtvdhbiQE3Hdc1M=",
+        "active": true,
+        "valid": true,
+        "categories": [],
+        "conditions": null,
+        "channels": [
+          {
+            "ref": "feed",
+            "key": "in-app",
+            "type": "in_app_feed",
+            "conditions": null
+          },
+          {
+            "ref": "email",
+            "key": "knock-email",
+            "type": "email",
+            "conditions": null
+          }
+        ]
+      }
+    ],
+    "defaults": {
+      "cadence-refund-approved": {
+        "channel_types": {
+          "email": true,
+          "in_app_feed": true
+        }
+      },
+      "cadence-refund-declined": {
+        "channel_types": {
+          "email": true,
+          "in_app_feed": true
+        }
+      },
+      "cadence-refund-opened": {
+        "channel_types": {
+          "email": true,
+          "in_app_feed": true
+        }
+      },
+      "cadence-seat-claimed": {
+        "channel_types": {
+          "email": false,
+          "in_app_feed": true
+        }
+      },
+      "cadence-enrollment": {
+        "channel_types": {
+          "email": false,
+          "in_app_feed": false
+        }
+      },
+      "cadence-discussion-question": {
+        "channel_types": {
+          "email": true,
+          "in_app_feed": true
+        }
+      },
+      "cadence-discussion-reply": {
+        "channel_types": {
+          "email": true,
+          "in_app_feed": true
+        }
+      }
+    }
+  },
+  "domains": {
+    "date": "2026-11-11",
+    "finalRun": 1794416882372,
+    "finalEvidence": "1794416882372/evidence.json",
+    "hostedRunAndMessageEvidence": "1794416882372/workflow-outcomes.json",
+    "actualDomainPayloads": "1794416882372/domain-payloads.json",
+    "acceptedSubmissions": 69,
+    "completedHostedRecipientRunsWithoutErrors": 69,
+    "deliveredFeedMessages": 50,
+    "sandboxEmailMessagesNotSent": 22,
+    "providerDeliveryLogs": 0,
+    "sandboxModeAssertedBeforeEveryTrigger": true,
+    "existingDataDbUntouched": true,
+    "isolatedMigratedInMemorySqlite": true,
+    "verified": [
+      "Fresh Enrollment default suppressed before any recipient preference write",
+      "Explicit Settings-style enrollment opt-in delivers",
+      "All seven final workflow types through real domain operations and worker",
+      "Exact recipients and actor exclusions; two current Platform Admins",
+      "Individual Purchase and Team Licence approval and decline outcomes",
+      "Distinct Enrollment after legitimate approval lapse and re-enrollment",
+      "Seat redemption has distinct Seat and Enrollment events",
+      "Team Licence purchase alone excluded from Enrollment",
+      "Instructor self enrollment, Instructor top level comment, author self reply and reply to Instructor top level excluded",
+      "Platform Admin buyer excluded from open-request recipients and self approval",
+      "Master Receive off suppresses both channels for all seven types",
+      "Receive on with Email off preserves Feed for all seven types, email suppressed for all five supported",
+      "Unrelated sms:false preference survives recursive merge and profile identification for all six people",
+      "Overlapping Instructor and Team Admin receives two distinct notifications from one Seat claim",
+      "Completed workflow step preference evaluations establish negative suppression separately from Feed absence",
+      "All 22 email messages not_sent with message.not_sent events and zero provider delivery logs"
+    ],
+    "feedCounts": {
+      "I": 16,
+      "A": 9,
+      "B": 0,
+      "T": 6,
+      "P": 9,
+      "Q": 10
+    },
+    "people": {
+      "I": 17944168823720,
+      "A": 17944168823721,
+      "B": 17944168823722,
+      "T": 17944168823723,
+      "P": 17944168823724,
+      "Q": 17944168823725
+    },
+    "localChecks": {
+      "typecheck": "passed",
+      "testsPassed": 491,
+      "testsFailed": 2,
+      "testFailures": "Existing request-logger Windows spawnSync /bin/sh ENOENT cases"
+    },
+    "earlierRun": {
+      "id": 1794416687551,
+      "qualification": "All delivery phases and 69 hosted runs passed; final unrelated preference assertion failed because verification harness omitted Settings persistence_strategy merge. Final run corrects harness omission; no app defect found."
+    },
+    "notClaimed": [
+      "Rendered browser verification",
+      "Actual email delivery",
+      "Full pending verification checklist completion",
+      "Production readiness"
+    ],
+    "rootHandlesSeparately": [
+      "Configuration and email previews",
+      "Signed-token authorization and expired-token behavior",
+      "Hosted Feed seen/read persistence"
+    ]
+  },
+  "access": {
+    "checkedAt": "2026-11-11T17:16:15.634Z",
+    "boundary": "HTTP session endpoint and signed hosted API; no browser interaction",
+    "missingSession": 401,
+    "invalidSession": 401,
+    "nonexistentPerson": 401,
+    "sessionSelectedSubjects": ["1", "2", "2"],
+    "ownFeed": 200,
+    "crossFeed": 403,
+    "ownPreferences": 200,
+    "crossPreferencesRead": 403,
+    "ownPreferenceWrite": 200,
+    "crossPreferenceWrite": 403,
+    "profileWrite": 403,
+    "unsignedFeed": 400,
+    "malformedToken": 400,
+    "wrongSignature": 400,
+    "forgedSubject": 400,
+    "expiredToken": 200,
+    "expirationRejected": false,
+    "claims": {
+      "subject": "1",
+      "lifetimeSeconds": 900,
+      "explicitGrants": true,
+      "allowedOperations": [
+        "user/feed_read",
+        "user/feed_write",
+        "preferences/read",
+        "preferences/write"
+      ]
+    },
+    "afterSignOut": 401
+  },
+  "seenRead": {
+    "checkedAt": "2026-11-11T17:13:08.707Z",
+    "source": "first isolated synthetic domain cohort; fresh signed credentials for each request",
+    "personId": 17944166875510,
+    "otherPersonId": 17944166875512,
+    "itemId": "3LyCDdspzjyfREpnCel4iiJmAWk",
+    "destination": "/team",
+    "beforeUnreadCount": 16,
+    "crossPersonReadWriteStatus": 403,
+    "crossWriteDidNotChangeTarget": true,
+    "seen": {
+      "status": 200,
+      "seenAt": "2026-11-11T17:13:08.998000Z",
+      "readAt": null,
+      "unreadCount": 16
+    },
+    "readWriteReturnedReadAt": "2026-11-11T17:13:09.316576Z",
+    "read": {
+      "status": 200,
+      "unreadCount": 15,
+      "absentFromUnread": true,
+      "persistedWithFreshCredentials": true
+    },
+    "persistedReadAt": "2026-11-11T17:13:09.316576Z"
+  },
+  "emailPreviews": [
+    {
+      "key": "cadence-refund-approved",
+      "sha": "/3UNSQoejNs0KI4aTRS2aW9wkP3YYqgKxYXdsZkOgk0=",
+      "result": "success",
+      "checks": {
+        "wordmarkHTML": true,
+        "wordmarkText": true,
+        "summaryHTML": true,
+        "summaryText": true,
+        "onePrimaryAction": true,
+        "actionURL": true,
+        "settingsURL": true,
+        "linksCount": 3,
+        "textAction": true,
+        "textSettings": true,
+        "noUnrenderedLiquid": true,
+        "noPrivateOrFullCommentMarkers": true
+      }
+    },
+    {
+      "key": "cadence-refund-declined",
+      "sha": "UT8IeS2hcPTqjwFWa30E3e5AoUvRL3yhq8TU/fEAJnk=",
+      "result": "success",
+      "checks": {
+        "wordmarkHTML": true,
+        "wordmarkText": true,
+        "summaryHTML": true,
+        "summaryText": true,
+        "onePrimaryAction": true,
+        "actionURL": true,
+        "settingsURL": true,
+        "linksCount": 3,
+        "textAction": true,
+        "textSettings": true,
+        "noUnrenderedLiquid": true,
+        "noPrivateOrFullCommentMarkers": true
+      }
+    },
+    {
+      "key": "cadence-refund-opened",
+      "sha": "wgvGu6JT+6fojge35pObUUlA7V3h6sMT3i6MloPAd0I=",
+      "result": "success",
+      "checks": {
+        "wordmarkHTML": true,
+        "wordmarkText": true,
+        "summaryHTML": true,
+        "summaryText": true,
+        "onePrimaryAction": true,
+        "actionURL": true,
+        "settingsURL": true,
+        "linksCount": 3,
+        "textAction": true,
+        "textSettings": true,
+        "noUnrenderedLiquid": true,
+        "noPrivateOrFullCommentMarkers": true
+      }
+    },
+    {
+      "key": "cadence-discussion-question",
+      "sha": "AhtfxTp3AykyLk/rzNfcbb5c4gB0Egzcks52Csz1/Dc=",
+      "result": "success",
+      "checks": {
+        "wordmarkHTML": true,
+        "wordmarkText": true,
+        "summaryHTML": true,
+        "summaryText": true,
+        "onePrimaryAction": true,
+        "actionURL": true,
+        "settingsURL": true,
+        "linksCount": 3,
+        "textAction": true,
+        "textSettings": true,
+        "noUnrenderedLiquid": true,
+        "noPrivateOrFullCommentMarkers": true
+      }
+    },
+    {
+      "key": "cadence-discussion-reply",
+      "sha": "S4O1HJE8faH3zTvaUsjYfNYEpwD1EtvdhbiQE3Hdc1M=",
+      "result": "success",
+      "checks": {
+        "wordmarkHTML": true,
+        "wordmarkText": true,
+        "summaryHTML": true,
+        "summaryText": true,
+        "onePrimaryAction": true,
+        "actionURL": true,
+        "settingsURL": true,
+        "linksCount": 3,
+        "textAction": true,
+        "textSettings": true,
+        "noUnrenderedLiquid": true,
+        "noPrivateOrFullCommentMarkers": true
+      }
+    }
+  ],
+  "actualSandboxRenders": [
+    {
+      "key": "cadence-discussion-question",
+      "messageId": "3LyC60xSEVrfExqwodmVSVttKDA",
+      "status": "not_sent",
+      "subject": "New Discussion Question on Cadence",
+      "actionURL": "http://127.0.0.1:5173/courses/hosted-1794416687551-10/lessons/10",
+      "settingsURL": "http://127.0.0.1:5173/settings",
+      "checks": {
+        "subjectMatchesActualPayload": true,
+        "summaryMatchesActualPayload": true,
+        "actionMatchesActualPayload": true,
+        "settingsMatchesActualPayload": true,
+        "wordmarkHTML": true,
+        "wordmarkText": true,
+        "onePrimaryAction": true,
+        "privacyMarkersAbsent": true
+      }
+    },
+    {
+      "key": "cadence-discussion-reply",
+      "messageId": "3LyC61XgNwahDttmqz81OsyNwiB",
+      "status": "not_sent",
+      "subject": "New Discussion Reply on Cadence",
+      "actionURL": "http://127.0.0.1:5173/courses/hosted-1794416687551-10/lessons/10",
+      "settingsURL": "http://127.0.0.1:5173/settings",
+      "checks": {
+        "subjectMatchesActualPayload": true,
+        "summaryMatchesActualPayload": true,
+        "actionMatchesActualPayload": true,
+        "settingsMatchesActualPayload": true,
+        "wordmarkHTML": true,
+        "wordmarkText": true,
+        "onePrimaryAction": true,
+        "privacyMarkersAbsent": true
+      }
+    },
+    {
+      "key": "cadence-refund-approved",
+      "messageId": "3LyC5te0APVaMDTzjnYeE3qJkht",
+      "status": "not_sent",
+      "subject": "Refund Request approved — Hosted course 1794416687551 8",
+      "actionURL": "http://127.0.0.1:5173/settings",
+      "settingsURL": "http://127.0.0.1:5173/settings",
+      "checks": {
+        "subjectMatchesActualPayload": true,
+        "summaryMatchesActualPayload": true,
+        "actionMatchesActualPayload": true,
+        "settingsMatchesActualPayload": true,
+        "wordmarkHTML": true,
+        "wordmarkText": true,
+        "onePrimaryAction": true,
+        "privacyMarkersAbsent": true
+      }
+    },
+    {
+      "key": "cadence-refund-declined",
+      "messageId": "3LyC3hzLeLf06gWqVNFRt3evwMB",
+      "status": "not_sent",
+      "subject": "Refund Request declined — Hosted course 1794416687551 3",
+      "actionURL": "http://127.0.0.1:5173/settings",
+      "settingsURL": "http://127.0.0.1:5173/settings",
+      "checks": {
+        "subjectMatchesActualPayload": true,
+        "summaryMatchesActualPayload": true,
+        "actionMatchesActualPayload": true,
+        "settingsMatchesActualPayload": true,
+        "wordmarkHTML": true,
+        "wordmarkText": true,
+        "onePrimaryAction": true,
+        "privacyMarkersAbsent": true
+      }
+    },
+    {
+      "key": "cadence-refund-opened",
+      "messageId": "3LyC5n0Bie82LvzTZNtQFYOQHi4",
+      "status": "not_sent",
+      "subject": "New Open Refund Request — Hosted course 1794416687551 8",
+      "actionURL": "http://127.0.0.1:5173/admin/refunds",
+      "settingsURL": "http://127.0.0.1:5173/settings",
+      "checks": {
+        "subjectMatchesActualPayload": true,
+        "summaryMatchesActualPayload": true,
+        "actionMatchesActualPayload": true,
+        "settingsMatchesActualPayload": true,
+        "wordmarkHTML": true,
+        "wordmarkText": true,
+        "onePrimaryAction": true,
+        "privacyMarkersAbsent": true
+      }
+    }
+  ],
+  "independentExpiryReproduction": {
+    "time": "2026-11-11T17:08:03.457Z",
+    "checks": [
+      {
+        "sdk": "@knocklabs/node signUserToken",
+        "requestedExpiresInSeconds": 900,
+        "lifetimeSeconds": 900,
+        "expBeforeRequest": false,
+        "subject": "17944166875511",
+        "status": 200,
+        "serverDate": "Wed, 11 Nov 2026 17:08:03 GMT"
+      },
+      {
+        "sdk": "@knocklabs/node signUserToken",
+        "requestedExpiresInSeconds": -3600,
+        "lifetimeSeconds": -3600,
+        "expBeforeRequest": true,
+        "subject": "17944166875511",
+        "status": 200,
+        "serverDate": "Wed, 11 Nov 2026 17:08:03 GMT"
+      }
+    ],
+    "environmentResourceKeys": [
+      "name",
+      "owner",
+      "order",
+      "updated_at",
+      "created_at",
+      "slug",
+      "deleted_at",
+      "visibility",
+      "hide_pii_data",
+      "label_color",
+      "last_commit_at"
+    ],
+    "authOrExpiryFields": [],
+    "note": "No auth or expiry setting exposed by official management Environment schema; no configuration changed."
+  },
+  "crossPersonBatch": {
+    "status": 200,
+    "responseLength": 0,
+    "foreignPayloadExposed": false,
+    "stateChanged": false
+  },
+  "limitations": [
+    "Expired-token rejection failed in inspected Development environment",
+    "Browser access host unavailable; no rendered browser verification",
+    "Shared domain operations exercised; live rendered Discussion entry points remain pending",
+    "No actual email delivery performed or claimed"
+  ],
+  "finalCadenceSessionRead": {
+    "checkedAt": "2026-11-11T17:19:42.564Z",
+    "boundary": "Final Cadence NotificationSession with real signed hosted Feed transport and isolated fixture identity; HTTP credential endpoint checked separately",
+    "owner": 17944166875510,
+    "other": 17944166875512,
+    "target": "3LyCDYFdeYxfxhZ5GqGCAVTbzyS",
+    "foreignBatchReadReturnedSuccess": false,
+    "foreignBatchReadErrorShown": true,
+    "ownReadAttempts": [false, true],
+    "beforeUnreadCount": 15,
+    "afterUnreadCount": 14,
+    "targetRemovedAfterConfirmation": true
+  }
+}
