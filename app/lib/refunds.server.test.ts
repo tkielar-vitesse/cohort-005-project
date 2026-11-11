@@ -1,9 +1,12 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { and, eq, sql } from "drizzle-orm";
 import { createTestDb, seedBaseData } from "~/test/setup";
 import * as schema from "~/db/schema";
 import { LessonProgressStatus, RefundStatus, UserRole } from "~/db/schema";
-import { getNotificationSubmissions } from "./notification-submissions.server";
+import {
+  getNotificationSubmissions,
+  processNextNotification,
+} from "./notification-submissions.server";
 import {
   approveRefundRequest,
   checkRefundRequest,
@@ -37,7 +40,11 @@ beforeEach(() => {
 
   platformAdmin = db
     .insert(schema.users)
-    .values({ name: "Pat Admin", email: "pat@example.com", role: UserRole.Admin })
+    .values({
+      name: "Pat Admin",
+      email: "pat@example.com",
+      role: UserRole.Admin,
+    })
     .returning()
     .get();
 
@@ -210,7 +217,11 @@ describe("raising a Refund Request", () => {
       .run();
     declineRefundRequest(db, id, platformAdmin.id, "Declined.", NOW);
 
-    expect(getNotificationSubmissions(db)).toEqual(original);
+    expect(
+      getNotificationSubmissions(db).filter(
+        (row) => row.workflow === "cadence-refund-opened"
+      )
+    ).toEqual(original);
   });
 
   it("creates no additional obligations for repeated or ineligible requests and uses a distinct event for a later request", () => {
@@ -240,7 +251,11 @@ describe("raising a Refund Request", () => {
     const next = raise(purchase.id, base.user.id);
     expect(
       getNotificationSubmissions(db).map((submission) => submission.eventKey)
-    ).toEqual([`refund-opened:${first}`, `refund-opened:${next}`]);
+    ).toEqual([
+      `refund-opened:${first}`,
+      `refund-declined:${first}`,
+      `refund-opened:${next}`,
+    ]);
   });
 
   it("rolls back the request and earlier recipient obligations when a later intent cannot be persisted", () => {
@@ -306,7 +321,13 @@ describe("raising a Refund Request", () => {
   it("lets the buyer raise one on an Individual Purchase inside the window", () => {
     const purchase = buyForSelf(base.user.id);
 
-    const result = raiseRefundRequest(db, purchase.id, base.user.id, "Nope.", NOW);
+    const result = raiseRefundRequest(
+      db,
+      purchase.id,
+      base.user.id,
+      "Nope.",
+      NOW
+    );
 
     expect(result).toMatchObject({ ok: true, kind: "individual_purchase" });
   });
@@ -315,25 +336,27 @@ describe("raising a Refund Request", () => {
     const purchase = buyForSelf(base.user.id);
     const someoneElse = addLearner("Ben");
 
-    expect(checkRefundRequest(db, purchase.id, someoneElse.id, NOW)).toMatchObject(
-      { ok: false, status: 404 }
-    );
+    expect(
+      checkRefundRequest(db, purchase.id, someoneElse.id, NOW)
+    ).toMatchObject({ ok: false, status: 404 });
   });
 
   it("allows only one Open Refund Request per Purchase", () => {
     const purchase = buyForSelf(base.user.id);
     raise(purchase.id, base.user.id);
 
-    expect(checkRefundRequest(db, purchase.id, base.user.id, NOW)).toMatchObject(
-      { ok: false, status: 409 }
-    );
+    expect(
+      checkRefundRequest(db, purchase.id, base.user.id, NOW)
+    ).toMatchObject({ ok: false, status: 409 });
   });
 
   it("keeps the fourteenth day open and closes the fifteenth", () => {
     const onDay14 = buyForSelf(base.user.id, 14);
     const onDay15 = buyForSelf(addLearner("Ben").id, 15);
 
-    expect(checkRefundRequest(db, onDay14.id, onDay14.userId, NOW).ok).toBe(true);
+    expect(checkRefundRequest(db, onDay14.id, onDay14.userId, NOW).ok).toBe(
+      true
+    );
     expect(
       checkRefundRequest(db, onDay15.id, onDay15.userId, NOW)
     ).toMatchObject({ ok: false, error: "The 14-day window has closed." });
@@ -351,23 +374,33 @@ describe("raising a Refund Request", () => {
       )
       .run();
 
-    expect(checkRefundRequest(db, purchase.id, base.user.id, NOW)).toMatchObject(
-      { ok: false, status: 403 }
-    );
+    expect(
+      checkRefundRequest(db, purchase.id, base.user.id, NOW)
+    ).toMatchObject({ ok: false, status: 403 });
   });
 
   it("refuses a buyer who has watched two hours", () => {
     const purchase = buyForSelf(base.user.id);
     db.insert(schema.videoWatchEvents)
       .values([
-        { userId: base.user.id, lessonId: lessonIds[0], eventType: "progress", positionSeconds: 3600 },
-        { userId: base.user.id, lessonId: lessonIds[1], eventType: "progress", positionSeconds: 3600 },
+        {
+          userId: base.user.id,
+          lessonId: lessonIds[0],
+          eventType: "progress",
+          positionSeconds: 3600,
+        },
+        {
+          userId: base.user.id,
+          lessonId: lessonIds[1],
+          eventType: "progress",
+          positionSeconds: 3600,
+        },
       ])
       .run();
 
-    expect(checkRefundRequest(db, purchase.id, base.user.id, NOW)).toMatchObject(
-      { ok: false, status: 403 }
-    );
+    expect(
+      checkRefundRequest(db, purchase.id, base.user.id, NOW)
+    ).toMatchObject({ ok: false, status: 403 });
   });
 
   it("refuses a Team Licence with a Claimed Seat", () => {
@@ -375,7 +408,9 @@ describe("raising a Refund Request", () => {
     const { purchase, seats } = buySeats(teamAdmin.id, 3);
     claimSeat(seats[0].id, addLearner("Ben").id);
 
-    expect(checkRefundRequest(db, purchase.id, teamAdmin.id, NOW)).toMatchObject({
+    expect(
+      checkRefundRequest(db, purchase.id, teamAdmin.id, NOW)
+    ).toMatchObject({
       ok: false,
       status: 403,
     });
@@ -387,10 +422,12 @@ describe("the refund offer on the course page", () => {
     const individual = buyForSelf(base.user.id, 3);
     buySeats(base.user.id, 5, 1);
 
-    expect(getRefundOffer(db, base.user.id, base.course.id, NOW)).toMatchObject({
-      purchaseId: individual.id,
-      amount: 7900,
-    });
+    expect(getRefundOffer(db, base.user.id, base.course.id, NOW)).toMatchObject(
+      {
+        purchaseId: individual.id,
+        amount: 7900,
+      }
+    );
   });
 
   it("offers nothing once the purchase has been refunded", () => {
@@ -480,7 +517,9 @@ describe("approving a Refund Request", () => {
     // Seats are on hold while Open, but older data can still hold a claim.
     claimSeat(seats[0].id, addLearner("Ben").id);
 
-    expect(approveRefundRequest(db, id, platformAdmin.id, null, NOW)).toMatchObject({
+    expect(
+      approveRefundRequest(db, id, platformAdmin.id, null, NOW)
+    ).toMatchObject({
       ok: false,
       status: 409,
     });
@@ -501,16 +540,29 @@ describe("approving a Refund Request", () => {
     });
   });
 
-  it("emails the buyer that the refund is on its way", () => {
+  it("queues an approval summary for the buyer without claiming payout or returning direct mail", () => {
     const purchase = buyForSelf(base.user.id);
     const id = raise(purchase.id, base.user.id);
 
     const result = approveRefundRequest(db, id, platformAdmin.id, null, NOW);
 
     if (!result.ok) throw new Error(result.error);
-    expect(result.email.to).toBe("test@example.com");
-    expect(result.email.subject).toBe("Refund approved — Test Course");
-    expect(result.email.body).toContain("$79.00");
+    expect(result).not.toHaveProperty("email");
+    expect(getNotificationSubmissions(db)).toMatchObject([
+      {},
+      {
+        recipientId: base.user.id,
+        actorId: platformAdmin.id,
+        eventKey: `refund-approved:${id}`,
+        workflow: "cadence-refund-approved",
+        data: {
+          title: "Refund Request approved",
+          body: `Your Refund Request for Test Course (Purchase #${purchase.id}) was approved for $79.00.`,
+          url: "/settings",
+          email_summary: `Your Refund Request for Test Course (Purchase #${purchase.id}) was approved for $79.00. Review the decision in Cadence.`,
+        },
+      },
+    ]);
   });
 });
 
@@ -519,7 +571,9 @@ describe("declining a Refund Request", () => {
     const purchase = buyForSelf(base.user.id);
     const id = raise(purchase.id, base.user.id);
 
-    expect(declineRefundRequest(db, id, platformAdmin.id, "  ", NOW)).toMatchObject({
+    expect(
+      declineRefundRequest(db, id, platformAdmin.id, "  ", NOW)
+    ).toMatchObject({
       ok: false,
       status: 400,
     });
@@ -538,9 +592,26 @@ describe("declining a Refund Request", () => {
     );
 
     if (!result.ok) throw new Error(result.error);
-    expect(result.email.body).toContain("You finished the course.");
+    expect(result).not.toHaveProperty("email");
+    expect(getNotificationSubmissions(db)).toMatchObject([
+      {},
+      {
+        recipientId: base.user.id,
+        actorId: platformAdmin.id,
+        eventKey: `refund-declined:${id}`,
+        workflow: "cadence-refund-declined",
+        data: {
+          title: "Refund Request declined",
+          body: `Your Refund Request for Test Course (Purchase #${purchase.id}) was declined. Decision note: You finished the course. You can raise another Refund Request.`,
+          url: "/settings",
+          email_summary: `Your Refund Request for Test Course (Purchase #${purchase.id}) was declined. Review the decision in Cadence.`,
+        },
+      },
+    ]);
     expect(isEnrolled(base.user.id)).toBe(true);
-    expect(checkRefundRequest(db, purchase.id, base.user.id, NOW).ok).toBe(true);
+    expect(checkRefundRequest(db, purchase.id, base.user.id, NOW).ok).toBe(
+      true
+    );
   });
 
   it("frees a Team Licence's Seats again", () => {
@@ -646,4 +717,136 @@ describe("listing Refund Requests", () => {
       { seatCount: 2, claimedSeatCount: 0, canRequestRefund: true },
     ]);
   });
+});
+
+const decisionCases = [
+  { outcome: "approved", decide: approveRefundRequest },
+  { outcome: "declined", decide: declineRefundRequest },
+] as const;
+
+for (const { outcome, decide } of decisionCases) {
+  describe(`Refund Request ${outcome} notification`, () => {
+    for (const kind of ["individual_purchase", "team_licence"] as const) {
+      it(`snapshots one buyer obligation for ${kind} and rejects repeated decisions`, () => {
+        const purchase =
+          kind === "team_licence"
+            ? buySeats(base.user.id, 2).purchase
+            : buyForSelf(base.user.id);
+        const id = raise(purchase.id, base.user.id);
+        expect(
+          decide(db, id, platformAdmin.id, "Private decision.", NOW)
+        ).toEqual({ ok: true });
+        const submissions = getNotificationSubmissions(db);
+        const decision = submissions.find(
+          (row) => row.workflow === `cadence-refund-${outcome}`
+        );
+        if (!decision) throw new Error("Decision submission missing");
+        expect(decision.recipientId).toBe(base.user.id);
+        expect(decision.data.body).toContain("Private decision.");
+        expect(decision.data.email_summary).not.toContain("Private decision.");
+        expect(decision.data.action_url).toMatch(
+          /^https?:\/\/[^/]+\/settings$/
+        );
+        expect(decision.data.settings_url).toBe(decision.data.action_url);
+        expect(decide(db, id, platformAdmin.id, "Again.", NOW)).toMatchObject({
+          ok: false,
+          status: 409,
+        });
+        expect(getNotificationSubmissions(db)).toEqual(submissions);
+        db.update(schema.courses)
+          .set({ title: "Edited later" })
+          .where(eq(schema.courses.id, base.course.id))
+          .run();
+        expect(getNotificationSubmissions(db)).toEqual(submissions);
+      });
+
+      it(`rolls back ${kind} decision and entitlements when its intent cannot persist`, () => {
+        const purchase =
+          kind === "team_licence"
+            ? buySeats(base.user.id, 2).purchase
+            : buyForSelf(base.user.id);
+        const id = raise(purchase.id, base.user.id);
+        const original = getNotificationSubmissions(db);
+        db.run(
+          sql.raw(
+            `CREATE TRIGGER reject_decision BEFORE INSERT ON notification_submissions WHEN NEW.workflow = 'cadence-refund-${outcome}' BEGIN SELECT RAISE(ABORT, 'intent unavailable'); END`
+          )
+        );
+        expect(() =>
+          decide(db, id, platformAdmin.id, "Private decision.", NOW)
+        ).toThrow("intent unavailable");
+        expect(listRefundRequestsForBuyer(db, base.user.id)).toMatchObject([
+          { status: RefundStatus.Open, decisionNote: null },
+        ]);
+        expect(getNotificationSubmissions(db)).toEqual(original);
+        if (kind === "individual_purchase")
+          expect(isEnrolled(base.user.id)).toBe(true);
+        else
+          for (const seat of db.select().from(schema.coupons).all()) {
+            expect(getSeatAvailability(db, seat)).toBe("on_hold");
+            expect(seat.refundedAt).toBeNull();
+          }
+      });
+    }
+
+    it("excludes a buyer deciding their own Refund Request", () => {
+      const purchase = buyForSelf(platformAdmin.id);
+      const id = raise(purchase.id, platformAdmin.id);
+      expect(
+        decide(db, id, platformAdmin.id, "Private decision.", NOW)
+      ).toEqual({ ok: true });
+      expect(getNotificationSubmissions(db)).toEqual([]);
+    });
+
+    it("keeps a committed decision successful when later adapter submission fails", async () => {
+      db.update(schema.users)
+        .set({ role: UserRole.Student })
+        .where(eq(schema.users.id, platformAdmin.id))
+        .run();
+      const purchase = buyForSelf(base.user.id);
+      const id = raise(purchase.id, base.user.id);
+      db.update(schema.users)
+        .set({ role: UserRole.Admin })
+        .where(eq(schema.users.id, platformAdmin.id))
+        .run();
+      const adapter = {
+        identify: vi.fn(async () => {
+          expect(listRefundRequestsForBuyer(db, base.user.id)).toMatchObject([
+            { status: outcome },
+          ]);
+        }),
+        trigger: vi.fn(async () => {
+          throw new Error("Vendor unavailable");
+        }),
+      };
+      expect(
+        decide(db, id, platformAdmin.id, "Private decision.", NOW)
+      ).toEqual({ ok: true });
+      expect(adapter.identify).not.toHaveBeenCalled();
+      await processNextNotification(db, adapter);
+      expect(adapter.trigger).toHaveBeenCalledOnce();
+      expect(getNotificationSubmissions(db)).toMatchObject([
+        { state: "pending", attempts: 1 },
+      ]);
+      expect(listRefundRequestsForBuyer(db, base.user.id)).toMatchObject([
+        { status: outcome },
+      ]);
+    });
+  });
+}
+
+it("uses distinct obligations for decisions on later Refund Requests after a decline", () => {
+  const purchase = buyForSelf(base.user.id);
+  const first = raise(purchase.id, base.user.id);
+  declineRefundRequest(db, first, platformAdmin.id, "Try again.", NOW);
+  const second = raise(purchase.id, base.user.id);
+  declineRefundRequest(db, second, platformAdmin.id, "Another decision.", NOW);
+  const decisions = getNotificationSubmissions(db).filter(
+    (row) => row.workflow === "cadence-refund-declined"
+  );
+  expect(decisions.map((row) => row.eventKey)).toEqual([
+    `refund-declined:${first}`,
+    `refund-declined:${second}`,
+  ]);
+  expect(new Set(decisions.map((row) => row.idempotencyKey)).size).toBe(2);
 });
