@@ -1,4 +1,13 @@
-import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  sql,
+} from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { alias } from "drizzle-orm/sqlite-core";
 import * as schema from "~/db/schema";
@@ -218,8 +227,7 @@ function getRefundFigures(db: Queryable, purchase: Purchase): RefundFigures {
 /** What the buyer is told when they can't raise a Refund Request. */
 const RULE_BREAK_ERRORS: Record<RuleBreak, string> = {
   window_closed: `The ${REFUND_WINDOW_DAYS}-day window has closed.`,
-  watched_too_much:
-    "You have watched too much of this course to get a refund.",
+  watched_too_much: "You have watched too much of this course to get a refund.",
   completed_too_much:
     "You have completed too much of this course to request a refund.",
   seat_claimed: "A Team Licence with a claimed Seat cannot be refunded.",
@@ -262,7 +270,11 @@ function findRuleBreaks(
 
 // ─── Raising a Refund Request ───
 
-export type Failure = { ok: false; status: 400 | 403 | 404 | 409; error: string };
+export type Failure = {
+  ok: false;
+  status: 400 | 403 | 404 | 409;
+  error: string;
+};
 
 type RefundCheck = { ok: true; purchase: Purchase } | Failure;
 
@@ -350,8 +362,6 @@ export function getRefundOffer(
     lastDayInWindow: lastDayOfWindow(individualPurchase.createdAt),
   };
 }
-
-export type Email = { to: string; subject: string; body: string };
 
 export type RaiseResult =
   { ok: true; refundRequestId: number; kind: PurchaseKind } | Failure;
@@ -513,7 +523,8 @@ export function listRefundRequestsForReview(
       // A Claimed Seat belongs to another student, so the only way out of
       // that request is a decline. See docs/adr/0003.
       canApprove:
-        row.status === RefundStatus.Open && !ruleBreaks.includes("seat_claimed"),
+        row.status === RefundStatus.Open &&
+        !ruleBreaks.includes("seat_claimed"),
     };
   });
 }
@@ -581,7 +592,7 @@ export function listTeamLicences(db: Queryable, buyerId: number, now: Date) {
 
 // ─── Deciding a Refund Request ───
 
-export type DecisionResult = { ok: true; email: Email } | Failure;
+export type DecisionResult = { ok: true } | Failure;
 
 function findOpenRefundRequest(
   tx: Queryable,
@@ -690,10 +701,15 @@ export function approveRefundRequest(
       .where(eq(refunds.id, refundRequestId))
       .run();
 
-    return {
-      ok: true,
-      email: buildDecisionEmail(tx, purchase, RefundStatus.Approved, note),
-    };
+    enqueueDecisionNotification(
+      tx,
+      purchase,
+      refundRequestId,
+      platformAdminId,
+      RefundStatus.Approved,
+      note
+    );
+    return { ok: true };
   });
 }
 
@@ -733,62 +749,49 @@ export function declineRefundRequest(
       .where(eq(refunds.id, refundRequestId))
       .run();
 
-    return {
-      ok: true,
-      email: buildDecisionEmail(
-        tx,
-        found.purchase,
-        RefundStatus.Declined,
-        trimmedNote
-      ),
-    };
+    enqueueDecisionNotification(
+      tx,
+      found.purchase,
+      refundRequestId,
+      platformAdminId,
+      RefundStatus.Declined,
+      trimmedNote
+    );
+    return { ok: true };
   });
 }
 
-/** The email the buyer gets once their Refund Request is decided. */
-function buildDecisionEmail(
+/** Snapshot the decision in the same transaction as its domain changes. */
+function enqueueDecisionNotification(
   db: Queryable,
   purchase: Purchase,
+  refundRequestId: number,
+  actorId: number,
   decision: RefundStatus.Approved | RefundStatus.Declined,
   note: string | null
-): Email {
-  const buyer = db
-    .select()
-    .from(users)
-    .where(eq(users.id, purchase.userId))
-    .get();
+) {
   const course = db
     .select()
     .from(courses)
     .where(eq(courses.id, purchase.courseId))
     .get();
-
-  const courseTitle = course?.title ?? "your course";
-  const noteLines = note ? ["", note] : [];
-
-  const middle =
-    decision === RefundStatus.Approved
-      ? [
-          `We have approved your refund request for "${courseTitle}".`,
-          `${formatPrice(purchase.amountPaid)}, the full amount you paid, is on its way back to you.`,
-          ...noteLines,
-        ]
-      : [
-          `We have looked at your refund request for "${courseTitle}" and decided not to refund it.`,
-          ...noteLines,
-          "",
-          "You still have everything you bought. If something changes, you can raise a new refund request.",
-        ];
-
-  return {
-    to: buyer?.email ?? "",
-    subject: `Refund ${decision} — ${courseTitle}`,
-    body: [
-      `Hi ${buyer?.name ?? "there"},`,
-      "",
-      ...middle,
-      "",
-      "— The Cadence team",
-    ].join("\n"),
-  };
+  if (!course) throw new Error("Refund Request course not found.");
+  const summary = `Your Refund Request for ${course.title} (Purchase #${purchase.id}) was ${decision}${decision === RefundStatus.Approved ? ` for ${formatPrice(purchase.amountPaid)}` : ""}.`;
+  const nextRequest =
+    decision === RefundStatus.Declined
+      ? " You can raise another Refund Request."
+      : "";
+  enqueueNotification(db, {
+    eventKey: `refund-${decision}:${refundRequestId}`,
+    recipientId: purchase.userId,
+    actorId,
+    workflow: `cadence-refund-${decision}`,
+    data: notificationData({
+      title: `Refund Request ${decision}`,
+      body: `${summary}${note ? ` Decision note: ${note}` : ""}${nextRequest}`,
+      url: "/settings",
+      emailSummary: `${summary} Review the decision in Cadence.`,
+      emailSubject: `Refund Request ${decision} — ${course.title}`,
+    }),
+  });
 }
