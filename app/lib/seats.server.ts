@@ -31,9 +31,9 @@ export function redeemSeat(
         .from(coupons)
         .where(eq(coupons.code, code))
         .get();
-      if (!seat) return { ok: false, error: "Coupon not found" };
+      if (!seat) return { ok: false, error: "Seat not found" };
       if (seat.redeemedByUserId !== null)
-        return { ok: false, error: "Coupon has already been redeemed" };
+        return { ok: false, error: "Seat has already been claimed" };
       const availability = getSeatAvailability(tx, seat);
       if (availability === "on_hold") return { ok: false, error: SEAT_ON_HOLD };
       if (availability === "refunded")
@@ -71,7 +71,7 @@ export function redeemSeat(
         return {
           ok: false,
           error:
-            "This coupon can only be redeemed from the same country as the purchaser",
+            "This Seat can only be claimed from the same country as the purchaser",
         };
 
       tx.update(coupons)

@@ -91,26 +91,28 @@ export function preferenceChoices(
     return { key: type.key, receive, email: type.email && email };
   });
 }
+// Knock merges this patch recursively; omitted workflows and channel settings
+// remain under their current owner, including concurrent unrelated changes.
 export function preferenceUpdate(
-  saved: PreferenceSet,
-  choices: PreferenceChoice[]
+  choices: PreferenceChoice[],
+  baseline: PreferenceChoice[] = []
 ): PreferenceSet {
-  const workflows = { ...saved.workflows };
+  const workflows: NonNullable<PreferenceSet["workflows"]> = {};
   for (const choice of choices) {
     const type = notificationTypes.find((type) => type.key === choice.key);
     if (!type) throw new Error("Unknown Notification type");
-    const previous = workflows[choice.key];
-    workflows[choice.key] = {
-      ...(typeof previous === "object" ? previous : {}),
-      channel_types: {
-        ...(typeof previous === "object" ? previous.channel_types : {}),
-        in_app_feed: choice.receive,
-        email: choice.receive && type.email && choice.email,
-      },
-    };
+    const previous = baseline.find((value) => value.key === choice.key);
+    const channel_types: Record<string, boolean> = {};
+    if (!previous || previous.receive !== choice.receive) {
+      channel_types.in_app_feed = choice.receive;
+      channel_types.email = choice.receive && type.email && choice.email;
+    } else if (previous.email !== choice.email) {
+      channel_types.email = choice.receive && type.email && choice.email;
+    }
+    if (Object.keys(channel_types).length)
+      workflows[choice.key] = { channel_types };
   }
-  const { id: _, ...rest } = saved;
-  return { ...rest, workflows };
+  return { workflows };
 }
 export type NotificationItem = {
   id: string;

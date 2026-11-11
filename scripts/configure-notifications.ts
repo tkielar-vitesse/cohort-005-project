@@ -97,7 +97,7 @@ const defaultsSchema = z.object({
   preference_set: z
     .object({ workflows: z.record(z.string(), z.unknown()).optional() })
     .passthrough()
-    .optional(),
+    .nullish(),
 });
 const workflowSchema = z.object({
   active: z.boolean(),

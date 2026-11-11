@@ -63,50 +63,51 @@ export function createDiscussionComment(
       .values({ ...input, body })
       .returning()
       .get();
+    // Recipient selection stays explicit; both posting entry points share the
+    // same snapshot and content construction.
+    let notification:
+      | {
+          kind: "question" | "reply";
+          recipientId: number;
+          title: string;
+          verb: string;
+        }
+      | undefined;
     if (input.parentId === null && context.instructorId !== input.userId) {
-      const actor = tx
-        .select()
-        .from(users)
-        .where(eq(users.id, input.userId))
-        .get()!;
-      const url = `/courses/${context.courseSlug}/lessons/${input.lessonId}`;
-      const summary = `${actor.name} asked a Discussion Question in ${context.courseTitle} — ${context.lessonTitle}.`;
-      enqueueNotification(tx, {
-        eventKey: `discussion-question:${comment.id}`,
-        workflow: "cadence-discussion-question",
+      notification = {
+        kind: "question",
         recipientId: context.instructorId,
-        actorId: input.userId,
-        data: notificationData(
-          {
-            title: "New Discussion Question",
-            body: `${summary} ${body.slice(0, 280)}`,
-            url,
-            emailSummary: summary,
-            emailSubject: "New Discussion Question on Cadence",
-          },
-          options.appOrigin
-        ),
-      });
+        title: "New Discussion Question",
+        verb: "asked a Discussion Question",
+      };
+    } else if (replyRecipientId !== undefined) {
+      notification = {
+        kind: "reply",
+        recipientId: replyRecipientId,
+        title: "New Discussion Reply",
+        verb: "replied to a Discussion Question",
+      };
     }
-    if (replyRecipientId !== undefined) {
+    if (notification) {
       const actor = tx
         .select()
         .from(users)
         .where(eq(users.id, input.userId))
-        .get()!;
-      const summary = `${actor.name} replied to a Discussion Question in ${context.courseTitle} — ${context.lessonTitle}.`;
+        .get();
+      if (!actor) throw new Error("Discussion participant not found");
+      const summary = `${actor.name} ${notification.verb} in ${context.courseTitle} — ${context.lessonTitle}.`;
       enqueueNotification(tx, {
-        eventKey: `discussion-reply:${comment.id}`,
-        workflow: "cadence-discussion-reply",
-        recipientId: replyRecipientId,
+        eventKey: `discussion-${notification.kind}:${comment.id}`,
+        workflow: `cadence-discussion-${notification.kind}`,
+        recipientId: notification.recipientId,
         actorId: input.userId,
         data: notificationData(
           {
-            title: "New Discussion Reply",
+            title: notification.title,
             body: `${summary} ${body.slice(0, 280)}`,
             url: `/courses/${context.courseSlug}/lessons/${input.lessonId}`,
             emailSummary: summary,
-            emailSubject: "New Discussion Reply on Cadence",
+            emailSubject: `${notification.title} on Cadence`,
           },
           options.appOrigin
         ),

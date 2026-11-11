@@ -1,3 +1,4 @@
+import { deferred } from "~/test/deferred";
 import { expect, it, vi } from "vitest";
 import { NotificationSession } from "./notification-session";
 const item = {
@@ -16,18 +17,15 @@ const auth = {
   types: [],
 };
 it("ignores late identity responses after switching people", async () => {
-  let resolve!: (value: typeof auth) => void;
+  const identity = deferred<typeof auth>();
   const transport = {
-    identify: () =>
-      new Promise<typeof auth>((r) => {
-        resolve = r;
-      }),
+    identify: () => identity.promise,
     request: vi.fn(),
   };
   const session = new NotificationSession("1", transport);
   const pending = session.start();
   session.dispose();
-  resolve(auth);
+  identity.resolve(auth);
   await pending;
   expect(session.state.credentials).toBeNull();
   expect(transport.request).not.toHaveBeenCalled();
@@ -55,7 +53,7 @@ it("keeps rows and unread count on failed read, and confirms a dismissal only on
 });
 
 it("never restores a confirmed dismissal from a poll started before the write", async () => {
-  let stale!: (feed: unknown) => void;
+  const stale = deferred<unknown>();
   const request = vi
     .fn()
     .mockResolvedValue({ entries: [item], meta: { unread_count: 1 } });
@@ -64,18 +62,13 @@ it("never restores a confirmed dismissal from a poll started before the write", 
     request,
   });
   await session.start();
-  request.mockImplementationOnce(
-    () =>
-      new Promise((resolve) => {
-        stale = resolve;
-      })
-  );
+  request.mockImplementationOnce(() => stale.promise);
   const pending = session.refresh();
   await Promise.resolve();
   await Promise.resolve();
   request.mockResolvedValue({ entries: [], meta: { unread_count: 0 } });
   await session.read("one");
-  stale({ entries: [item], meta: { unread_count: 1 } });
+  stale.resolve({ entries: [item], meta: { unread_count: 1 } });
   await pending;
   expect(session.state.feed).toEqual({
     entries: [],
@@ -126,9 +119,7 @@ it("failed preference saves retain edits and never report success", async () => 
   session.editPreferences([
     { key: "cadence-enrollment", receive: true, email: false },
   ]);
-  request
-    .mockResolvedValueOnce({ workflows: { unrelated: false } })
-    .mockRejectedValueOnce(new Error("offline"));
+  request.mockRejectedValueOnce(new Error("offline"));
   await session.savePreferences();
   expect(session.state.saved).toBe(false);
   expect(session.state.preferenceError).toContain("Could not save");
@@ -152,6 +143,7 @@ it("refreshes credentials from the session and clears state on identity mismatch
   expect(session.state.feed).toBeNull();
   expect(session.state.preferences).toBeNull();
   expect(session.state.error).toContain("unavailable");
+  expect(session.state.preferenceError).toContain("unavailable");
 });
 
 it("saves person-wide workflow preferences while preserving unrelated settings", async () => {
@@ -189,15 +181,122 @@ it("saves person-wide workflow preferences while preserving unrelated settings",
     "users/1/preferences/default",
     "PUT",
     {
-      __persistence_strategy__: "replace",
+      __persistence_strategy__: "merge",
       workflows: {
-        unrelated: false,
         "cadence-enrollment": {
           channel_types: { in_app_feed: true, email: false },
         },
       },
-      categories: { marketing: false },
     }
   );
   expect(session.state.saved).toBe(true);
+});
+
+it("synchronizes current profile on each Feed and preferences opening without writing preferences", async () => {
+  const identify = vi.fn().mockResolvedValue(auth);
+  const request = vi.fn().mockResolvedValue({ workflows: {} });
+  const session = new NotificationSession("1", { identify, request });
+  await session.start();
+  identify.mockClear();
+  request.mockClear();
+  await session.openFeed();
+  await session.openFeed();
+  await session.loadPreferences();
+  await session.loadPreferences();
+  expect(identify).toHaveBeenCalledTimes(4);
+  expect(request.mock.calls.every(([, , method]) => method === undefined)).toBe(
+    true
+  );
+  identify.mockRejectedValueOnce(new Error("offline"));
+  await session.openFeed();
+  expect(session.state.error).toContain("unavailable");
+  identify.mockRejectedValueOnce(new Error("offline"));
+  await session.loadPreferences();
+  expect(session.state.preferenceError).toContain("unavailable");
+});
+
+it("clears a saving session on effect restart and ignores its late completion", async () => {
+  const saved = deferred<unknown>();
+  const request = vi.fn().mockResolvedValue({
+    entries: [],
+    meta: { unread_count: 0 },
+    workflows: {},
+  });
+  const session = new NotificationSession("1", {
+    identify: async () => auth,
+    request,
+  });
+  await session.start();
+  await session.loadPreferences();
+  request.mockImplementationOnce(() => saved.promise);
+  const pending = session.savePreferences();
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(session.state.saving).toBe(true);
+  session.dispose();
+  session.activate();
+  await session.start();
+  expect(session.state.saving).toBe(false);
+  saved.resolve({});
+  await pending;
+  expect(session.state.saved).toBe(false);
+  expect(session.state.preferenceError).toBe("");
+});
+
+it.each(["Feed", "preferences"])(
+  "ignores late %s results after abandoning and restarting the effect",
+  async (surface) => {
+    const old = deferred<unknown>();
+    const request = vi.fn().mockResolvedValue({
+      entries: [],
+      meta: { unread_count: 2 },
+      workflows: {},
+    });
+    const session = new NotificationSession("1", {
+      identify: async () => auth,
+      request,
+    });
+    await session.start();
+    request.mockClear();
+    request.mockImplementationOnce(() => old.promise);
+    const pending =
+      surface === "Feed" ? session.refresh() : session.loadPreferences();
+    await vi.waitFor(() => expect(request).toHaveBeenCalledOnce());
+    session.dispose();
+    session.activate();
+    await session.start();
+    old.resolve({
+      entries: [item],
+      meta: { unread_count: 99 },
+      workflows: { "cadence-enrollment": true },
+    });
+    await pending;
+    expect(session.state.feed?.meta.unread_count).toBe(2);
+    expect(session.state.preferences).toBeNull();
+    expect(session.state.error).toBe("");
+  }
+);
+
+it("fences an outstanding Feed when identification discovers another person", async () => {
+  const late = deferred<unknown>();
+  const identify = vi.fn().mockResolvedValue(auth);
+  const request = vi
+    .fn()
+    .mockResolvedValue({ entries: [], meta: { unread_count: 0 } });
+  const session = new NotificationSession("1", { identify, request });
+  await session.start();
+  request.mockImplementationOnce(() => late.promise);
+  const pending = session.refresh();
+  await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+  identify.mockResolvedValue({
+    ...auth,
+    credentials: { ...auth.credentials, userId: "2" },
+  });
+  await session.start();
+  late.resolve({ entries: [item], meta: { unread_count: 1 } });
+  await pending;
+  expect(session.state.credentials).toBeNull();
+  expect(session.state.feed).toBeNull();
+  expect(session.state.error).toContain("unavailable");
+  expect(session.state.preferenceError).toContain("unavailable");
 });

@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -26,7 +27,8 @@ export function NotificationsProvider({
   children: ReactNode;
 }) {
   const [session] = useState(() => new NotificationSession(String(personId)));
-  useEffect(() => {
+  useLayoutEffect(() => {
+    session.activate();
     void session.start();
     const interval = setInterval(() => {
       void session.refresh();
@@ -65,7 +67,10 @@ export function NotificationBell() {
   const count = state.feed?.meta.unread_count;
   const entries = state.feed?.entries ?? [];
   useEffect(() => {
-    if (open) void session.markSeen();
+    if (open) void session.openFeed();
+  }, [open, session]);
+  useEffect(() => {
+    if (open && !state.error) void session.markSeen();
   }, [open, state.feed, session]);
   useEffect(() => {
     const close = (event: KeyboardEvent) => {
@@ -137,7 +142,7 @@ export function NotificationBell() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    void session.start().then(() => session.markSeen());
+                    void session.openFeed();
                   }}
                 >
                   Retry
@@ -239,7 +244,8 @@ export function NotificationPreferences() {
             className="space-y-4"
           >
             {state.preferences.map((choice) => {
-              const type = state.types.find((type) => type.key === choice.key)!;
+              const type = state.types.find((type) => type.key === choice.key);
+              if (!type) return null;
               return (
                 <fieldset
                   disabled={state.saving}
@@ -255,7 +261,7 @@ export function NotificationPreferences() {
                       checked={choice.receive}
                       onChange={(event) =>
                         session.editPreferences(
-                          state.preferences!.map((value) =>
+                          (state.preferences ?? []).map((value) =>
                             value.key === choice.key
                               ? { ...value, receive: event.target.checked }
                               : value
@@ -273,7 +279,7 @@ export function NotificationPreferences() {
                         disabled={!choice.receive}
                         onChange={(event) =>
                           session.editPreferences(
-                            state.preferences!.map((value) =>
+                            (state.preferences ?? []).map((value) =>
                               value.key === choice.key
                                 ? { ...value, email: event.target.checked }
                                 : value

@@ -135,6 +135,10 @@ export async function processNextNotification(
     { behavior: "immediate" }
   );
   if (!claimed) return expired > 0;
+  const firstAttemptAt = claimed.firstAttemptAt;
+  if (firstAttemptAt === null)
+    throw new Error("Claim has no processing start time");
+  const deadline = firstAttemptAt + SUBMISSION_BUDGET_MS;
   const owned = and(
     eq(table.id, claimed.id),
     eq(table.claimToken, token),
@@ -162,13 +166,7 @@ export async function processNextNotification(
         new Promise<never>((_, reject) => {
           timer = setTimeout(
             () => reject(new Error("Notification attempt timed out")),
-            Math.max(
-              0,
-              Math.min(
-                30_000,
-                claimed!.firstAttemptAt! + SUBMISSION_BUDGET_MS - now()
-              )
-            )
+            Math.max(0, Math.min(30_000, deadline - now()))
           );
         }),
       ]);
@@ -232,10 +230,7 @@ export async function processNextNotification(
     db.update(table)
       .set({
         state: retryable ? "pending" : "rejected",
-        nextAttemptAt: Math.min(
-          now() + delay,
-          claimed.firstAttemptAt! + SUBMISSION_BUDGET_MS
-        ),
+        nextAttemptAt: Math.min(now() + delay, deadline),
         lastError: reason,
         finishedAt: retryable ? null : now(),
         claimToken: null,
