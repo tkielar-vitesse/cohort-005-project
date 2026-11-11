@@ -75,6 +75,7 @@ it("maps profile synchronization and immutable trigger identity without writing 
       recipients: ["12"],
       actor: "2",
       data: { body: "Reply", url: "/courses/example/lessons/1" },
+      settings: { sandbox_mode: true },
     },
     { idempotencyKey: "stable" }
   );

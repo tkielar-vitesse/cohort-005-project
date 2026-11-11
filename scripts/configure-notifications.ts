@@ -50,11 +50,6 @@ if (!feed || !email)
   throw new Error(
     "Configure an in-app Feed and the built-in Knock test email channel first"
   );
-if (!email.environment_settings?.development?.is_sandbox) {
-  throw new Error(
-    "Put the built-in test email channel in sandbox mode in Knock Development before configuring workflows"
-  );
-}
 
 // No sender override: Knock's built-in test channel owns its fixed sender.
 const emailTemplate = {
@@ -152,9 +147,10 @@ console.log(
   )
 );
 for (const type of notificationTypes) {
-  const { workflow } = await management(
+  const result = await management(
     `/workflows/${type.key}?environment=development&hide_uncommitted_changes=true`
   );
+  const workflow = result.workflow ?? result;
   console.log(
     JSON.stringify({
       key: type.key,
