@@ -16,6 +16,8 @@ Tracking: [spec #36](https://github.com/tkielar-vitesse/cohort-005-project/issue
 
 Local verification in the isolated `implement/notifications-44` worktree on 2026-11-11: `npm run typecheck` passed, followed by `npm run test` with no `.env` and all `KNOCK_*` process variables removed. Result: 484 passed, 2 failed of 486 tests (23 passing files, one failing file). Both failures are the existing Windows `spawnSync /bin/sh ENOENT` cases in `request-logger/agents.test.ts` at lines 1087 and 1118; they are unrelated to Notifications. Offline configuration CLI smoke checks (`--help` and `--preview` without `--live`) printed usage and exited successfully without requests. No further hosted or browser checks were performed.
 
+Final integration verification after review fixes: `npm run typecheck` passed, then `npm run test` reported **491 passed and the same two existing Windows shell failures** (24 passing files, one failing file). The rendered jsdom regression in `app/components/notifications.test.tsx` covers both Bell and Preferences during Strict Mode effect replay. Additional state contracts cover late identity/Feed/preferences responses, restart during a save, profile synchronization on opening, and partial preference merges. Both review axes found their reported code issues resolved. These local DOM/state tests do not replace the pending deliberate browser and hosted checks.
+
 Trigger acceptance means Cadence persisted a workflow-run ID and stopped retrying. It does not establish Feed/email delivery. Stable idempotency keys reduce duplicates without an exactly-once guarantee. Do not replay retained terminal submissions to make a verification run pass.
 
 ## Local checks, without credentials
