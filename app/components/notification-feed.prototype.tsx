@@ -285,7 +285,7 @@ function Prototype({
         <div>
           <h2 className="font-semibold">Notification Feed</h2>
           <p className="text-xs text-muted-foreground">
-            {badge} unread · {context?.user.name ?? "Loading identity…"}
+            {badge} unread
           </p>
         </div>
         <Button
