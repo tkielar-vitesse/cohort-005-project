@@ -142,3 +142,120 @@ it("commits a Discussion Question with an immutable Instructor submission", () =
     }),
   ]);
 });
+
+it("notifies only the Discussion Question author about another person's Discussion Reply", () => {
+  const question = createDiscussionComment(db, {
+    userId: base.user.id,
+    lessonId,
+    parentId: null,
+    body: "A question",
+  });
+  const participant = db
+    .insert(users)
+    .values({
+      name: "Another Student",
+      email: "participant@example.com",
+      role: UserRole.Student,
+    })
+    .returning()
+    .get();
+  createDiscussionComment(db, {
+    userId: participant.id,
+    lessonId,
+    parentId: question.id,
+    body: "Another participant",
+  });
+  const reply = createDiscussionComment(
+    db,
+    {
+      userId: base.instructor.id,
+      lessonId,
+      parentId: question.id,
+      body: "Here is the explanation",
+    },
+    { appOrigin: "https://cadence.example" }
+  );
+  expect(
+    getNotificationSubmissions(db).filter(
+      (item) => item.eventKey === `discussion-reply:${reply.id}`
+    )
+  ).toEqual([
+    expect.objectContaining({
+      recipientId: base.user.id,
+      actorId: base.instructor.id,
+      workflow: "cadence-discussion-reply",
+      data: expect.objectContaining({
+        title: "New Discussion Reply",
+        body: expect.stringContaining("Here is the explanation"),
+        email_summary:
+          "Test Instructor replied to a Discussion Question in Test Course — Transactions.",
+        action_url: `https://cadence.example/courses/test-course/lessons/${lessonId}`,
+      }),
+    }),
+  ]);
+  expect(
+    getNotificationSubmissions(db)
+      .filter((item) => item.workflow === "cadence-discussion-reply")
+      .map((item) => item.recipientId)
+  ).toEqual([base.user.id, base.user.id]);
+});
+
+it("excludes self-replies and replies to Instructor top-level comments", () => {
+  for (const authorId of [base.user.id, base.instructor.id]) {
+    const question = createDiscussionComment(db, {
+      userId: authorId,
+      lessonId,
+      parentId: null,
+      body: "Top-level comment",
+    });
+    createDiscussionComment(db, {
+      userId: base.user.id,
+      lessonId,
+      parentId: question.id,
+      body: "No notification",
+    });
+  }
+  expect(
+    getNotificationSubmissions(db).filter(
+      (item) => item.workflow === "cadence-discussion-reply"
+    )
+  ).toEqual([]);
+});
+
+it("keeps a minimal immutable Discussion Reply snapshot after edits, deletion and duplicate submission", () => {
+  const question = db
+    .insert(comments)
+    .values({
+      userId: base.user.id,
+      lessonId,
+      body: "Question",
+    })
+    .returning()
+    .get();
+  const reply = createDiscussionComment(db, {
+    userId: base.instructor.id,
+    lessonId,
+    parentId: question.id,
+    body: "A".repeat(280) + "Private remainder",
+  });
+  const original = getNotificationSubmissions(db)[0];
+  db.update(users)
+    .set({ name: "Changed actor" })
+    .where(eq(users.id, base.instructor.id))
+    .run();
+  db.update(comments)
+    .set({ body: "Edited", deletedAt: new Date().toISOString() })
+    .where(eq(comments.id, reply.id))
+    .run();
+  db.delete(comments).where(eq(comments.id, reply.id)).run();
+  db.delete(comments).where(eq(comments.id, question.id)).run();
+  enqueueNotification(db, { ...original, data: { body: "Replacement" } });
+  expect(getNotificationSubmissions(db)).toEqual([original]);
+  expect(original.data.body).toContain("Test Instructor");
+  expect(original.data.body).toContain("A".repeat(280));
+  expect(original.data.body).not.toContain("Private remainder");
+  expect(original.data.email_summary).toBe(
+    "Test Instructor replied to a Discussion Question in Test Course — Transactions."
+  );
+  expect(original.eventKey).toBe(`discussion-reply:${reply.id}`);
+});

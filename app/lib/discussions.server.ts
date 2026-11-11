@@ -40,6 +40,7 @@ export function createDiscussionComment(
       .where(eq(lessons.id, input.lessonId))
       .get();
     if (!context) throw new Error("Lesson not found");
+    let replyRecipientId: number | undefined;
     if (input.parentId !== null) {
       const parent = tx
         .select()
@@ -51,6 +52,11 @@ export function createDiscussionComment(
         throw new Error("Parent comment belongs to a different lesson");
       if (parent.parentId !== null)
         throw new Error("Replies can only be one level deep");
+      if (
+        parent.userId !== context.instructorId &&
+        parent.userId !== input.userId
+      )
+        replyRecipientId = parent.userId;
     }
     const comment = tx
       .insert(comments)
@@ -77,6 +83,30 @@ export function createDiscussionComment(
             url,
             emailSummary: summary,
             emailSubject: "New Discussion Question on Cadence",
+          },
+          options.appOrigin
+        ),
+      });
+    }
+    if (replyRecipientId !== undefined) {
+      const actor = tx
+        .select()
+        .from(users)
+        .where(eq(users.id, input.userId))
+        .get()!;
+      const summary = `${actor.name} replied to a Discussion Question in ${context.courseTitle} — ${context.lessonTitle}.`;
+      enqueueNotification(tx, {
+        eventKey: `discussion-reply:${comment.id}`,
+        workflow: "cadence-discussion-reply",
+        recipientId: replyRecipientId,
+        actorId: input.userId,
+        data: notificationData(
+          {
+            title: "New Discussion Reply",
+            body: `${summary} ${body.slice(0, 280)}`,
+            url: `/courses/${context.courseSlug}/lessons/${input.lessonId}`,
+            emailSummary: summary,
+            emailSubject: "New Discussion Reply on Cadence",
           },
           options.appOrigin
         ),
