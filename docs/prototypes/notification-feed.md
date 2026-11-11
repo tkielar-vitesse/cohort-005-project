@@ -44,6 +44,8 @@ The original replay key was fixed per stored Discussion Reply. Knock therefore r
 
 ## Decision status
 
+Final human review accepted the updated prototype: “This looks good now.” The popover title and accessibility labels use **Notifications**, the popover omits the selected person's name, and the header button always shows the unread-count badge. These final presentation changes are captured in commit `5590e2b`.
+
 Human verdict: “Use prototype A, but add cross icons to remove notifications. Do not divide between all and unread. Make it unread notifications only and then mark them as read and remove from the UI after dismissing.” This resolves the layout and dismissal decision. Row navigation and opening/seen behavior remain as proposed above.
 
 Keep this on `prototype/notification-feed`, do not merge, and open no implementation PR. The wayfinder destination is a PRD; production implementation belongs after that handoff.
