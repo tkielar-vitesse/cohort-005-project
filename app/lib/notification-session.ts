@@ -146,7 +146,11 @@ export class NotificationSession {
           if (!this.active || generation !== this.generation) return;
           if (access.credentials.userId !== this.personId) {
             this.reset();
-            this.update({ error: "Notifications unavailable. Try again." });
+            this.update({
+              error: "Notifications unavailable. Try again.",
+              preferenceError:
+                "Notification preferences unavailable. Try again.",
+            });
             throw new Error("Session changed");
           }
           this.update({ ...access, error: "" });

@@ -143,6 +143,7 @@ it("refreshes credentials from the session and clears state on identity mismatch
   expect(session.state.feed).toBeNull();
   expect(session.state.preferences).toBeNull();
   expect(session.state.error).toContain("unavailable");
+  expect(session.state.preferenceError).toContain("unavailable");
 });
 
 it("saves person-wide workflow preferences while preserving unrelated settings", async () => {
@@ -297,4 +298,5 @@ it("fences an outstanding Feed when identification discovers another person", as
   expect(session.state.credentials).toBeNull();
   expect(session.state.feed).toBeNull();
   expect(session.state.error).toContain("unavailable");
+  expect(session.state.preferenceError).toContain("unavailable");
 });
