@@ -66,9 +66,9 @@ it("a Team Licence creates Seats without enrolling its buyer or notifying the In
     quantity: 2,
   });
   expect(result.purchase.amountPaid).toBe(15800);
-  expect(result.coupons).toHaveLength(2);
+  expect(result.seats).toHaveLength(2);
   expect(
-    result.coupons.every((seat) => seat.purchaseId === result.purchase.id)
+    result.seats.every((seat) => seat.purchaseId === result.purchase.id)
   ).toBe(true);
   expect(db.select().from(enrollments).all()).toEqual([]);
   expect(getNotificationSubmissions(db)).toEqual([]);

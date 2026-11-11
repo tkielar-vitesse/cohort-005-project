@@ -41,7 +41,7 @@ function licence(ownerId = base.instructor.id) {
 }
 
 it("commits a Seat claim and Enrollment with two distinct obligations even for the same recipient", () => {
-  const { coupons: seats } = licence();
+  const { seats } = licence();
   const result = redeemSeat(db, seats[0].code, base.user.id, "PL");
   expect(result.ok).toBe(true);
   expect(db.select().from(enrollments).all()).toMatchObject([
@@ -80,7 +80,7 @@ it("commits a Seat claim and Enrollment with two distinct obligations even for t
 it.each(["cadence-enrollment", "cadence-seat-claimed"])(
   "rolls back all mutations when the %s intent fails",
   (workflow) => {
-    const { coupons: seats } = licence();
+    const { seats } = licence();
     db.run(
       sql.raw(
         `CREATE TRIGGER reject_intent BEFORE INSERT ON notification_submissions WHEN NEW.workflow = '${workflow}' BEGIN SELECT RAISE(ABORT, 'intent unavailable'); END`
@@ -94,11 +94,11 @@ it.each(["cadence-enrollment", "cadence-seat-claimed"])(
 );
 
 it("rejects repeated claims and already enrolled Students without extra events or claimed Seats", () => {
-  const { coupons: seats } = licence();
+  const { seats } = licence();
   redeemSeat(db, seats[0].code, base.user.id, "PL");
   expect(redeemSeat(db, seats[0].code, base.user.id, "PL")).toEqual({
     ok: false,
-    error: "Coupon has already been redeemed",
+    error: "Seat has already been claimed",
   });
   expect(redeemSeat(db, seats[1].code, base.user.id, "PL")).toEqual({
     ok: false,
@@ -116,7 +116,7 @@ it.each(["owner", "instructor", "both"])(
     const owner = actor === "instructor" ? base.user.id : base.instructor.id;
     const student = actor === "owner" ? base.user.id : base.instructor.id;
     const buyer = actor === "owner" ? base.user.id : owner;
-    const { coupons: seats } = licence(buyer);
+    const { seats } = licence(buyer);
     redeemSeat(db, seats[0].code, student, "PL");
     const workflows = getNotificationSubmissions(db).map(
       (submission) => submission.workflow
@@ -135,7 +135,7 @@ it.each(["owner", "instructor", "both"])(
 it.each([RefundStatus.Open, RefundStatus.Approved])(
   "rejects a Seat affected by an %s Refund Request",
   (status) => {
-    const { coupons: seats, purchase } = licence();
+    const { seats: seats, purchase } = licence();
     db.insert(refunds)
       .values({ purchaseId: purchase.id, reason: "Refund", status })
       .run();
@@ -148,11 +148,11 @@ it.each([RefundStatus.Open, RefundStatus.Approved])(
 );
 
 it("rejects a country mismatch and unknown Seat without changing anything", () => {
-  const { coupons: seats } = licence();
+  const { seats } = licence();
   expect(redeemSeat(db, seats[0].code, base.user.id, "GB").ok).toBe(false);
   expect(redeemSeat(db, "missing", base.user.id, "PL")).toEqual({
     ok: false,
-    error: "Coupon not found",
+    error: "Seat not found",
   });
   expect(db.select().from(coupons).all()).toEqual(seats);
   expect(db.select().from(enrollments).all()).toEqual([]);
@@ -160,7 +160,7 @@ it("rejects a country mismatch and unknown Seat without changing anything", () =
 });
 
 it("notifies the Purchase owner rather than other Team Admins and snapshots remaining Seats per claim", () => {
-  const { coupons: seats, team } = licence();
+  const { seats: seats, team } = licence();
   const other = db
     .insert(users)
     .values({
@@ -188,7 +188,7 @@ it("notifies the Purchase owner rather than other Team Admins and snapshots rema
 });
 
 it("creates a fresh Enrollment for a Lapsed Student without losing progress", () => {
-  const { coupons: seats } = licence();
+  const { seats } = licence();
   redeemSeat(db, seats[0].code, base.user.id, "PL");
   const module = db
     .insert(modules)
@@ -220,7 +220,7 @@ it("creates a fresh Enrollment for a Lapsed Student without losing progress", ()
 });
 
 it("keeps committed snapshots and redemption intact when later submission fails", async () => {
-  const { coupons: seats } = licence();
+  const { seats } = licence();
   redeemSeat(db, seats[0].code, base.user.id, "PL");
   const original = getNotificationSubmissions(db);
   db.update(courses)

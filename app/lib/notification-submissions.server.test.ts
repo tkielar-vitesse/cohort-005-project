@@ -1,3 +1,4 @@
+import { deferred } from "~/test/deferred";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createTestDb, seedBaseData } from "~/test/setup";
 import {
@@ -41,6 +42,8 @@ it("refreshes the current profile and retries ambiguous failures with identical 
     .set({ name: "Updated Instructor", email: "updated@example.com" })
     .where(eq(users.id, base.instructor.id))
     .run();
+  if (first.firstAttemptAt === null)
+    throw new Error("Expected processing start");
   now = first.nextAttemptAt;
   await processNextNotification(db, adapter, { now: () => now });
   const second = getNotificationSubmissions(db)[0];
@@ -53,7 +56,7 @@ it("refreshes the current profile and retries ambiguous failures with identical 
   ]);
   expect(adapter.trigger.mock.calls[1]).toEqual(adapter.trigger.mock.calls[0]);
   expect(second.nextAttemptAt - now).toBeGreaterThan(
-    first.nextAttemptAt - first.firstAttemptAt!
+    first.nextAttemptAt - first.firstAttemptAt
   );
 });
 
@@ -138,14 +141,9 @@ it("does not trigger when identification crosses the exact cutoff", async () => 
 });
 
 it("does not claim the same obligation concurrently and recovers a lost worker after its lease expires", async () => {
-  let release!: () => void;
+  const identification = deferred<void>();
   const first = {
-    identify: vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          release = resolve;
-        })
-    ),
+    identify: vi.fn(() => identification.promise),
     trigger: vi.fn(async () => ({ workflow_run_id: "stale-run" })),
   };
   const restarted = {
@@ -161,7 +159,7 @@ it("does not claim the same obligation concurrently and recovers a lost worker a
   expect(await processNextNotification(db, restarted, { now: () => now })).toBe(
     true
   );
-  release();
+  identification.resolve();
   await running;
   expect(first.trigger).not.toHaveBeenCalled();
   expect(getNotificationSubmissions(db)[0]).toMatchObject({
@@ -197,17 +195,12 @@ it("retains and logs invalid requests immediately without retrying", async () =>
 
 it("recovers an ambiguous hanging trigger with the same request and ignores its late result", async () => {
   vi.useFakeTimers();
-  let release!: (value: { workflow_run_id: string }) => void;
+  const trigger = deferred<{ workflow_run_id: string }>();
   const adapter = {
     identify: vi.fn(async () => {}),
     trigger: vi
       .fn()
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            release = resolve;
-          })
-      )
+      .mockImplementationOnce(() => trigger.promise)
       .mockResolvedValue({ workflow_run_id: "retry-run" }),
   };
   const running = processNextNotification(db, adapter, { now: () => now });
@@ -216,7 +209,7 @@ it("recovers an ambiguous hanging trigger with the same request and ignores its 
   expect(getNotificationSubmissions(db)[0].state).toBe("pending");
   now = getNotificationSubmissions(db)[0].nextAttemptAt;
   await processNextNotification(db, adapter, { now: () => now });
-  release({ workflow_run_id: "late-run" });
+  trigger.resolve({ workflow_run_id: "late-run" });
   await Promise.resolve();
   expect(adapter.trigger.mock.calls[1]).toEqual(adapter.trigger.mock.calls[0]);
   expect(getNotificationSubmissions(db)[0]).toMatchObject({

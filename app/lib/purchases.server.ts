@@ -81,8 +81,9 @@ export function purchaseTeamLicence(
       )
       .get();
     const team = membership
-      ? tx.select().from(teams).where(eq(teams.id, membership.teamId)).get()!
+      ? tx.select().from(teams).where(eq(teams.id, membership.teamId)).get()
       : tx.insert(teams).values({}).returning().get();
+    if (!team) throw new Error("Team Licence team not found");
     if (!membership)
       tx.insert(teamMembers)
         .values({
@@ -106,6 +107,6 @@ export function purchaseTeamLicence(
           .get()
       );
     }
-    return { purchase, team, coupons: seats };
+    return { purchase, team, seats };
   });
 }

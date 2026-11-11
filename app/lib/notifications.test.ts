@@ -7,22 +7,16 @@ import {
 } from "./notifications";
 
 describe("person-wide Notification preferences", () => {
-  it("suppresses both channels when Receive notifications is off and preserves unrelated choices", () => {
-    const saved = {
-      workflows: { unrelated: false },
-      categories: { other: false },
-    };
-    const next = preferenceUpdate(saved, [
+  it("suppresses both channels when Receive notifications is off and omits unrelated choices from the merge patch", () => {
+    const next = preferenceUpdate([
       { key: "cadence-refund-approved", receive: false, email: true },
     ]);
     expect(next).toMatchObject({
       workflows: {
-        unrelated: false,
         "cadence-refund-approved": {
           channel_types: { in_app_feed: false, email: false },
         },
       },
-      categories: { other: false },
     });
   });
 });
@@ -55,4 +49,23 @@ it("defaults Enrollment off without persisting or resetting a person's explicit 
     )?.receive
   ).toBe(true);
   expect(notificationTypes.filter((type) => type.email)).toHaveLength(5);
+});
+
+it("patches only edited workflow channel fields so concurrent unrelated choices survive", () => {
+  expect(
+    preferenceUpdate(
+      [
+        { key: "cadence-refund-approved", receive: true, email: false },
+        { key: "cadence-refund-declined", receive: true, email: true },
+      ],
+      [
+        { key: "cadence-refund-approved", receive: true, email: true },
+        { key: "cadence-refund-declined", receive: true, email: true },
+      ]
+    )
+  ).toEqual({
+    workflows: {
+      "cadence-refund-approved": { channel_types: { email: false } },
+    },
+  });
 });

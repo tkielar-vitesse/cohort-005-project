@@ -15,19 +15,15 @@ export function knockConfig() {
     !env.KNOCK_SECRET_API_KEY?.startsWith("sk_test_")
   )
     throw new Error("Knock Development configuration unavailable");
-  for (const key of [
-    "KNOCK_PUBLIC_API_KEY",
-    "KNOCK_SIGNING_KEY",
-    "KNOCK_FEED_CHANNEL_ID",
-  ])
-    if (!env[key])
-      throw new Error("Knock Development configuration unavailable");
-  return {
-    secretKey: env.KNOCK_SECRET_API_KEY!,
-    publicKey: env.KNOCK_PUBLIC_API_KEY!,
-    signingKey: env.KNOCK_SIGNING_KEY!,
-    channelId: env.KNOCK_FEED_CHANNEL_ID!,
-  };
+  const {
+    KNOCK_SECRET_API_KEY: secretKey,
+    KNOCK_PUBLIC_API_KEY: publicKey,
+    KNOCK_SIGNING_KEY: signingKey,
+    KNOCK_FEED_CHANNEL_ID: channelId,
+  } = env;
+  if (!secretKey || !publicKey || !signingKey || !channelId)
+    throw new Error("Knock Development configuration unavailable");
+  return { secretKey, publicKey, signingKey, channelId };
 }
 // The installed SDK signer predates explicit_grants and Feed/preference write grants.
 // Sign the documented claims directly so unspecified resources remain inaccessible.

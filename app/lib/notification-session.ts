@@ -61,11 +61,13 @@ export class NotificationSession {
     saving: false,
   };
   private active = true;
+  private generation = 0;
   private listeners = new Set<() => void>();
   private dismissed = new Set<string>();
   private seen = new Set<string>();
   private poll = 0;
   private appliedPoll = 0;
+  private preferenceBaseline: PreferenceChoice[] = [];
   private identity: Promise<void> | null = null;
   constructor(
     private personId: string,
@@ -78,31 +80,58 @@ export class NotificationSession {
     };
   };
   snapshot = () => this.state;
-  private update(change: Partial<typeof this.state>) {
-    if (!this.active) return;
+  private update(
+    change: Partial<typeof this.state>,
+    generation = this.generation
+  ) {
+    if (!this.active || generation !== this.generation) return;
     this.state = { ...this.state, ...change };
     this.listeners.forEach((listener) => listener());
   }
+  activate() {
+    this.active = true;
+  }
   dispose() {
     this.active = false;
+    this.reset();
+  }
+  private reset() {
+    this.generation++;
+    this.identity = null;
     this.state = {
-      ...this.state,
+      types: [],
+      error: "",
+      preferenceError: "",
+      saving: false,
+      saved: false,
       credentials: null,
       feed: null,
       preferences: null,
     };
-    this.listeners.clear();
+    this.preferenceBaseline = [];
+    this.dismissed.clear();
+    this.seen.clear();
   }
   async start() {
+    const generation = this.generation;
+    const update = (change: Partial<typeof this.state>) =>
+      this.update(change, generation);
     if (!this.active) return;
     try {
       await this.credentials(true);
-      await this.refresh();
+      if (generation === this.generation && this.active) await this.refresh();
     } catch {
-      this.update({ error: "Notifications unavailable. Try again." });
+      update({ error: "Notifications unavailable. Try again." });
     }
   }
+  async openFeed() {
+    const generation = this.generation;
+    await this.start();
+    if (generation === this.generation && this.active && !this.state.error)
+      await this.markSeen();
+  }
   private async credentials(force = false) {
+    const generation = this.generation;
     if (!this.active) throw new Error("Session changed");
     if (
       !force &&
@@ -114,19 +143,24 @@ export class NotificationSession {
       this.identity = this.transport
         .identify()
         .then((access) => {
-          if (!this.active) return;
+          if (!this.active || generation !== this.generation) return;
           if (access.credentials.userId !== this.personId) {
-            this.update({ credentials: null, feed: null, preferences: null });
+            this.reset();
+            this.update({ error: "Notifications unavailable. Try again." });
             throw new Error("Session changed");
           }
           this.update({ ...access, error: "" });
         })
         .finally(() => {
-          this.identity = null;
+          if (generation === this.generation) this.identity = null;
         });
     }
     await this.identity;
-    if (!this.active || !this.state.credentials)
+    if (
+      !this.active ||
+      generation !== this.generation ||
+      !this.state.credentials
+    )
       throw new Error("Session changed");
     return this.state.credentials;
   }
@@ -135,26 +169,40 @@ export class NotificationSession {
     method?: string,
     body?: unknown
   ) {
+    const generation = this.generation;
     const credentials = await this.credentials();
-    return this.transport.request<T>(
+    if (generation !== this.generation || !this.active)
+      throw new Error("Session changed");
+    const result = await this.transport.request<T>(
       credentials,
       path(credentials),
       method,
       body
     );
+    if (generation !== this.generation || !this.active)
+      throw new Error("Session changed");
+    return result;
   }
   async refresh() {
+    const generation = this.generation;
+    const update = (change: Partial<typeof this.state>) =>
+      this.update(change, generation);
     const poll = ++this.poll;
     try {
       const feed = await this.request<NotificationFeed>(
         (c) => `users/${c.userId}/feeds/${c.channelId}?status=unread`
       );
-      if (!this.active || poll < this.appliedPoll) return;
+      if (
+        generation !== this.generation ||
+        !this.active ||
+        poll < this.appliedPoll
+      )
+        return;
       this.appliedPoll = poll;
       const stale = feed.entries.filter((item) =>
         this.dismissed.has(item.id)
       ).length;
-      this.update({
+      update({
         feed: {
           entries: feed.entries.filter((item) => !this.dismissed.has(item.id)),
           meta: {
@@ -165,10 +213,13 @@ export class NotificationSession {
         error: "",
       });
     } catch {
-      this.update({ error: "Notifications unavailable. Try again." });
+      update({ error: "Notifications unavailable. Try again." });
     }
   }
   async markSeen() {
+    const generation = this.generation;
+    const update = (change: Partial<typeof this.state>) =>
+      this.update(change, generation);
     const ids =
       this.state.feed?.entries
         .filter((item) => !item.seen_at && !this.seen.has(item.id))
@@ -180,21 +231,25 @@ export class NotificationSession {
         message_ids: ids,
       });
     } catch {
+      if (generation !== this.generation || !this.active) return;
       ids.forEach((id) => this.seen.delete(id));
-      this.update({ error: "Could not mark Notifications seen. Try again." });
+      update({ error: "Could not mark Notifications seen. Try again." });
     }
   }
   async read(id: string) {
+    const generation = this.generation;
+    const update = (change: Partial<typeof this.state>) =>
+      this.update(change, generation);
     try {
       await this.request(() => "messages/batch/read", "POST", {
         message_ids: [id],
       });
-      if (!this.active) return false;
+      if (generation !== this.generation || !this.active) return false;
       if (this.dismissed.has(id)) return true;
       this.dismissed.add(id);
       const feed = this.state.feed;
       if (feed)
-        this.update({
+        update({
           feed: {
             entries: feed.entries.filter((item) => item.id !== id),
             meta: {
@@ -207,22 +262,28 @@ export class NotificationSession {
       void this.refresh();
       return true;
     } catch {
-      this.update({ error: "Could not dismiss Notification. Try again." });
+      update({ error: "Could not dismiss Notification. Try again." });
       return false;
     }
   }
   async loadPreferences() {
+    const generation = this.generation;
+    const update = (change: Partial<typeof this.state>) =>
+      this.update(change, generation);
     try {
+      await this.credentials(true);
       const saved = await this.request<PreferenceSet>(
         (c) => `users/${c.userId}/preferences/default`
       );
-      this.update({
-        preferences: preferenceChoices(saved, this.state.types),
+      if (generation !== this.generation || !this.active) return;
+      this.preferenceBaseline = preferenceChoices(saved, this.state.types);
+      update({
+        preferences: this.preferenceBaseline,
         preferenceError: "",
         saved: false,
       });
     } catch {
-      this.update({
+      update({
         preferenceError: "Notification preferences unavailable. Try again.",
       });
     }
@@ -231,28 +292,30 @@ export class NotificationSession {
     this.update({ preferences, saved: false });
   }
   async savePreferences() {
+    const generation = this.generation;
+    const update = (change: Partial<typeof this.state>) =>
+      this.update(change, generation);
     if (!this.state.preferences || this.state.saving) return;
     const choices = this.state.preferences;
-    this.update({ saving: true, preferenceError: "", saved: false });
+    update({ saving: true, preferenceError: "", saved: false });
     try {
-      const saved = await this.request<PreferenceSet>(
-        (c) => `users/${c.userId}/preferences/default`
-      );
       await this.request(
         (c) => `users/${c.userId}/preferences/default`,
         "PUT",
         {
-          ...preferenceUpdate(saved, choices),
-          __persistence_strategy__: "replace",
+          ...preferenceUpdate(choices, this.preferenceBaseline),
+          __persistence_strategy__: "merge",
         }
       );
-      this.update({ saved: true });
+      if (generation !== this.generation || !this.active) return;
+      this.preferenceBaseline = choices;
+      update({ saved: true });
     } catch {
-      this.update({
+      update({
         preferenceError: "Could not save Notification preferences. Try again.",
       });
     } finally {
-      this.update({ saving: false });
+      update({ saving: false });
     }
   }
 }

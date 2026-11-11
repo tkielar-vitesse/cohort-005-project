@@ -14,8 +14,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
     return Response.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    if (error instanceof Response) return error;
-    return Response.json(
+    if (error instanceof Response) throw error;
+    throw Response.json(
       { error: "Notifications unavailable. Try again." },
       { status: 503, headers: { "Cache-Control": "no-store" } }
     );
