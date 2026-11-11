@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { createTestDb, seedBaseData } from "~/test/setup";
 import * as schema from "~/db/schema";
 import { LessonProgressStatus, RefundStatus, UserRole } from "~/db/schema";
+import { getNotificationSubmissions } from "./notification-submissions.server";
 import {
   approveRefundRequest,
   checkRefundRequest,
@@ -158,6 +159,150 @@ function getSeat(seatId: number) {
 }
 
 describe("raising a Refund Request", () => {
+  it("commits without Platform Admins and preserves a Team Licence's Seat hold", () => {
+    db.update(schema.users)
+      .set({ role: UserRole.Student })
+      .where(eq(schema.users.id, platformAdmin.id))
+      .run();
+    const { purchase, seats } = buySeats(base.user.id, 2);
+
+    expect(
+      raiseRefundRequest(db, purchase.id, base.user.id, "Private reason.", NOW)
+    ).toMatchObject({ ok: true, kind: "team_licence" });
+    expect(listRefundRequestsForBuyer(db, base.user.id)).toHaveLength(1);
+    expect(getNotificationSubmissions(db)).toEqual([]);
+    expect(getSeatAvailability(db, getSeat(seats[0].id))).toBe("on_hold");
+  });
+
+  it("snapshots every current Platform Admin except the buyer, preserving intents after profile changes and decisions", () => {
+    const secondAdmin = addLearner("Sam");
+    for (const id of [secondAdmin.id, base.user.id]) {
+      db.update(schema.users)
+        .set({ role: UserRole.Admin })
+        .where(eq(schema.users.id, id))
+        .run();
+    }
+    const purchase = buyForSelf(base.user.id);
+    const id = raise(purchase.id, base.user.id);
+    const original = getNotificationSubmissions(db);
+    expect(original.map((submission) => submission.recipientId)).toEqual([
+      platformAdmin.id,
+      secondAdmin.id,
+    ]);
+    expect(original[0].eventKey).toBe(`refund-opened:${id}`);
+    expect(original[0].data).toEqual(original[1].data);
+
+    db.update(schema.users)
+      .set({ role: UserRole.Admin })
+      .where(eq(schema.users.id, base.instructor.id))
+      .run();
+    db.update(schema.users)
+      .set({ name: "Changed", role: UserRole.Student })
+      .where(eq(schema.users.id, secondAdmin.id))
+      .run();
+    db.update(schema.users)
+      .set({ name: "Changed buyer" })
+      .where(eq(schema.users.id, base.user.id))
+      .run();
+    db.update(schema.courses)
+      .set({ title: "Changed course" })
+      .where(eq(schema.courses.id, base.course.id))
+      .run();
+    declineRefundRequest(db, id, platformAdmin.id, "Declined.", NOW);
+
+    expect(getNotificationSubmissions(db)).toEqual(original);
+  });
+
+  it("creates no additional obligations for repeated or ineligible requests and uses a distinct event for a later request", () => {
+    const purchase = buyForSelf(base.user.id);
+    const first = raise(purchase.id, base.user.id);
+    const original = getNotificationSubmissions(db);
+
+    expect(
+      raiseRefundRequest(db, purchase.id, base.user.id, "Again.", NOW)
+    ).toMatchObject({ ok: false, status: 409 });
+    expect(
+      raiseRefundRequest(db, purchase.id, base.instructor.id, "Not mine.", NOW)
+    ).toMatchObject({ ok: false, status: 404 });
+    const oldPurchase = buyForSelf(addLearner("Late").id, 15);
+    expect(
+      raiseRefundRequest(
+        db,
+        oldPurchase.id,
+        oldPurchase.userId,
+        "Too late.",
+        NOW
+      )
+    ).toMatchObject({ ok: false, status: 403 });
+    expect(getNotificationSubmissions(db)).toEqual(original);
+
+    declineRefundRequest(db, first, platformAdmin.id, "Try again.", NOW);
+    const next = raise(purchase.id, base.user.id);
+    expect(
+      getNotificationSubmissions(db).map((submission) => submission.eventKey)
+    ).toEqual([`refund-opened:${first}`, `refund-opened:${next}`]);
+  });
+
+  it("rolls back the request and earlier recipient obligations when a later intent cannot be persisted", () => {
+    const secondAdmin = addLearner("Sam");
+    db.update(schema.users)
+      .set({ role: UserRole.Admin })
+      .where(eq(schema.users.id, secondAdmin.id))
+      .run();
+    db.run(
+      sql.raw(
+        `CREATE TRIGGER reject_second_intent BEFORE INSERT ON notification_submissions WHEN NEW.recipient_id = ${secondAdmin.id} BEGIN SELECT RAISE(ABORT, 'intent unavailable'); END`
+      )
+    );
+    const { purchase, seats } = buySeats(base.user.id, 2);
+
+    expect(() => raise(purchase.id, base.user.id)).toThrow(
+      "intent unavailable"
+    );
+    expect(listRefundRequestsForBuyer(db, base.user.id)).toEqual([]);
+    expect(getNotificationSubmissions(db)).toEqual([]);
+    expect(getSeatAvailability(db, getSeat(seats[0].id))).toBe("available");
+    expect(checkRefundRequest(db, purchase.id, base.user.id, NOW).ok).toBe(
+      true
+    );
+  });
+
+  it("notifies the current Platform Admin with a private review destination and no buyer confirmation", () => {
+    const purchase = buyForSelf(base.user.id);
+
+    const result = raiseRefundRequest(
+      db,
+      purchase.id,
+      base.user.id,
+      "Private reason.",
+      NOW
+    );
+
+    expect(result).toMatchObject({ ok: true, kind: "individual_purchase" });
+    expect(result).not.toHaveProperty("email");
+    expect(getNotificationSubmissions(db)).toMatchObject([
+      {
+        recipientId: platformAdmin.id,
+        actorId: base.user.id,
+        workflow: "cadence-refund-opened",
+        data: {
+          title: "New Open Refund Request",
+          body: `Test User requested a refund for Test Course ($79.00, Purchase #${purchase.id}). Reason: Private reason.`,
+          url: "/admin/refunds",
+          email_summary: `Test User requested a refund for Test Course ($79.00, Purchase #${purchase.id}). Review the Refund Request in Cadence.`,
+        },
+      },
+    ]);
+    const [submission] = getNotificationSubmissions(db);
+    expect(submission.data.action_url).toMatch(
+      /^https?:\/\/[^/]+\/admin\/refunds$/
+    );
+    expect(submission.data.settings_url).toMatch(
+      /^https?:\/\/[^/]+\/settings$/
+    );
+    expect(submission.data.email_summary).not.toContain("Private reason.");
+  });
+
   it("lets the buyer raise one on an Individual Purchase inside the window", () => {
     const purchase = buyForSelf(base.user.id);
 

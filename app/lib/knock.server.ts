@@ -112,6 +112,9 @@ export function createKnockAdapter(client: Pick<Knock, "users" | "workflows">) {
             recipients: [input.recipientId],
             actor: input.actorId,
             data: input.data,
+            // Development previews by default. Knock still creates in-app Feed
+            // messages; external channels render in sandbox without sending.
+            settings: { sandbox_mode: true },
           },
           { idempotencyKey: input.idempotencyKey }
         )
