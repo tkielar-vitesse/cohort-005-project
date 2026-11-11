@@ -261,7 +261,7 @@ function Prototype({
   const badge = feed?.meta.unread_count ?? 0;
   const trigger = (
     <button
-      aria-label={`Notification Feed, ${feed ? `${badge} unread` : "loading unread count"}`}
+      aria-label={`Notifications, ${feed ? `${badge} unread` : "loading unread count"}`}
       aria-expanded={visible}
       onClick={() => setOpen(!open)}
       className="relative flex items-center gap-2 rounded-lg border bg-background px-4 py-2 text-sm shadow-sm"
@@ -278,12 +278,12 @@ function Prototype({
 
   const panel = (
     <section
-      aria-label="Notification Feed"
+      aria-label="Notifications"
       className="flex max-h-[75vh] flex-col overflow-hidden rounded-xl border bg-background shadow-xl"
     >
       <header className="flex items-center justify-between gap-3 border-b p-4">
         <div>
-          <h2 className="font-semibold">Notification Feed</h2>
+          <h2 className="font-semibold">Notifications</h2>
           <p className="text-xs text-muted-foreground">
             {badge} unread
           </p>
@@ -291,7 +291,7 @@ function Prototype({
         <Button
           size="icon"
           variant="ghost"
-          aria-label="Close Notification Feed"
+          aria-label="Close Notifications"
           onClick={() => setOpen(false)}
         >
           <X className="size-4" />
