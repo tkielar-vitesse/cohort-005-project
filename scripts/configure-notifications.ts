@@ -1,9 +1,22 @@
 // Deliberate Development-only configuration, never part of the app or test startup.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
+import { z } from "zod";
 import { notificationTypes } from "../app/lib/notifications";
 
-const env = { ...parseEnv(readFileSync(".env", "utf8")), ...process.env };
+const args = z
+  .array(z.enum(["--help", "--live", "--apply", "--preview"]))
+  .parse(process.argv.slice(2));
+if (args.includes("--help") || !args.includes("--live")) {
+  console.log(
+    "Usage: npx tsx scripts/configure-notifications.ts --live [--apply] [--preview]\nWithout --live this command makes no requests. --live inspects committed Development configuration; --apply changes it; --preview renders synthetic email examples without delivery. See docs/notifications-verification.md."
+  );
+  process.exit(0);
+}
+const env = {
+  ...(existsSync(".env") ? parseEnv(readFileSync(".env", "utf8")) : {}),
+  ...process.env,
+};
 if (env.KNOCK_ENVIRONMENT !== "development") {
   throw new Error(
     "Notification configuration requires KNOCK_ENVIRONMENT=development"
@@ -12,7 +25,7 @@ if (env.KNOCK_ENVIRONMENT !== "development") {
 if (!env.KNOCK_SERVICE_TOKEN?.startsWith("knock_st_")) {
   throw new Error("Add KNOCK_SERVICE_TOKEN to ignored .env (never commit it)");
 }
-const apply = process.argv.includes("--apply");
+const apply = args.includes("--apply");
 const origin = new URL(env.CADENCE_APP_ORIGIN ?? "http://localhost:5173")
   .origin;
 
@@ -32,18 +45,26 @@ async function management(path: string, method = "GET", body?: unknown) {
       `Knock management ${method} ${path.split("?")[0]}: HTTP ${response.status}`
     );
   }
-  return response.status === 204 ? {} : response.json();
+  return response.status === 204 ? {} : ((await response.json()) as unknown);
 }
 
-const channels = await management(
-  "/channels?limit=100&include[]=environment_settings"
-);
+const channelSchema = z.object({
+  id: z.string(),
+  key: z.string(),
+  type: z.string(),
+  provider: z.string().optional(),
+  archived_at: z.string().nullable().optional(),
+});
+const channels = z
+  .object({ entries: z.array(channelSchema) })
+  .parse(
+    await management("/channels?limit=100&include[]=environment_settings")
+  );
 const feed = channels.entries.find(
-  (c: { id: string; type: string }) =>
-    c.id === env.KNOCK_FEED_CHANNEL_ID && c.type === "in_app_feed"
+  (c) => c.id === env.KNOCK_FEED_CHANNEL_ID && c.type === "in_app_feed"
 );
 const email = channels.entries.find(
-  (c: { provider: string; type: string; archived_at: string | null }) =>
+  (c) =>
     c.type === "email" && c.provider === "email_knock_limited" && !c.archived_at
 );
 if (!feed || !email)
@@ -72,10 +93,37 @@ const previewSummaries: Record<string, string> = {
   "cadence-discussion-reply":
     "Emma Wilson posted a Discussion Reply in TypeScript Fundamentals, lesson Getting started.",
 };
+const defaultsSchema = z.object({
+  preference_set: z
+    .object({ workflows: z.record(z.string(), z.unknown()).optional() })
+    .passthrough()
+    .optional(),
+});
+const workflowSchema = z.object({
+  active: z.boolean(),
+  sha: z.string(),
+  categories: z.array(z.string()).optional().default([]),
+  settings: z
+    .object({
+      override_preferences: z.boolean().optional().default(false),
+      is_commercial: z.boolean().optional().default(false),
+    })
+    .optional()
+    .default({ override_preferences: false, is_commercial: false }),
+  steps: z.array(
+    z.object({
+      ref: z.string(),
+      channel_key: z.string(),
+      channel_type: z.string(),
+    })
+  ),
+});
 
 if (apply) {
   // Read/merge existing environment choices; never write recipient baselines.
-  const current = await management("/environments/development/defaults");
+  const current = defaultsSchema.parse(
+    await management("/environments/development/defaults")
+  );
   const preferences = current.preference_set ?? {};
   const workflows = { ...preferences.workflows };
   for (const type of notificationTypes) {
@@ -132,15 +180,23 @@ if (apply) {
 }
 
 // Inspect committed resources, not drafts. Print only non-secret evidence.
-const defaults = await management(
-  "/environments/development/defaults?hide_uncommitted_changes=true"
+const defaults = defaultsSchema.parse(
+  await management(
+    "/environments/development/defaults?hide_uncommitted_changes=true"
+  )
 );
 console.log(
   JSON.stringify(
     {
       environment: "development",
       mode: apply ? "applied" : "inspect",
-      defaults: defaults.preference_set,
+      // Limit output to this catalogue, preserving unrelated settings privately.
+      defaults: Object.fromEntries(
+        notificationTypes.map((type) => [
+          type.key,
+          defaults.preference_set?.workflows?.[type.key],
+        ])
+      ),
     },
     null,
     2
@@ -150,7 +206,12 @@ for (const type of notificationTypes) {
   const result = await management(
     `/workflows/${type.key}?environment=development&hide_uncommitted_changes=true`
   );
-  const workflow = result.workflow ?? result;
+  // GET returns the resource directly; mutation responses may wrap it.
+  const envelope = z
+    .object({ workflow: z.unknown().optional() })
+    .passthrough()
+    .parse(result);
+  const workflow = workflowSchema.parse(envelope.workflow ?? result);
   console.log(
     JSON.stringify({
       key: type.key,
@@ -158,16 +219,14 @@ for (const type of notificationTypes) {
       sha: workflow.sha,
       categories: workflow.categories,
       settings: workflow.settings,
-      steps: workflow.steps.map(
-        (s: { ref: string; channel_key: string; channel_type: string }) => ({
-          ref: s.ref,
-          channel: s.channel_key,
-          type: s.channel_type,
-        })
-      ),
+      steps: workflow.steps.map((s) => ({
+        ref: s.ref,
+        channel: s.channel_key,
+        type: s.channel_type,
+      })),
     })
   );
-  if (process.argv.includes("--preview") && type.email) {
+  if (args.includes("--preview") && type.email) {
     const data = {
       body: "Feed details stay in Cadence.",
       url: "/settings",
