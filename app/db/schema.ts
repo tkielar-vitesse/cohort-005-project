@@ -44,6 +44,46 @@ export enum TeamMemberRole {
 
 // ─── Tables ───
 
+// Durable submission obligations, not copies of Knock Notifications. No foreign
+// keys: source/profile deletion must not erase an already committed obligation.
+export const notificationSubmissions = sqliteTable(
+  "notification_submissions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventKey: text("event_key").notNull(),
+    recipientId: integer("recipient_id").notNull(),
+    actorId: integer("actor_id").notNull(),
+    workflow: text("workflow").notNull(),
+    data: text("data", { mode: "json" })
+      .notNull()
+      .$type<Record<string, unknown>>(),
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    createdAt: integer("created_at").notNull(),
+    state: text("state")
+      .notNull()
+      .$type<"pending" | "processing" | "accepted" | "rejected">()
+      .default("pending"),
+    firstAttemptAt: integer("first_attempt_at"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: integer("next_attempt_at").notNull().default(0),
+    claimToken: text("claim_token"),
+    leaseUntil: integer("lease_until"),
+    workflowRunId: text("workflow_run_id"),
+    lastError: text("last_error"),
+    finishedAt: integer("finished_at"),
+  },
+  (table) => [
+    uniqueIndex("notification_event_recipient_unique").on(
+      table.eventKey,
+      table.recipientId
+    ),
+    index("notification_submissions_due_idx").on(
+      table.state,
+      table.nextAttemptAt
+    ),
+  ]
+);
+
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
