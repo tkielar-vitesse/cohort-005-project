@@ -4,6 +4,7 @@
   "description": "An awesome course platform",
   "type": "module",
   "scripts": {
+    "prototype:knock": "react-router dev --host 127.0.0.1",
     "cherry-pick": "ai-hero-cli cherry-pick --branch=live-run-through --upstream=https://github.com/ai-hero-dev/cohort-005-project.git",
     "reset": "ai-hero-cli reset --branch=live-run-through --upstream=https://github.com/ai-hero-dev/cohort-005-project.git",
     "create-pr": "ai-hero-cli create-pr --branch=live-run-through --upstream=https://github.com/ai-hero-dev/cohort-005-project.git",
@@ -23,6 +24,7 @@
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
+    "@knocklabs/node": "^1.41.1",
     "@monaco-editor/react": "^4.7.0",
     "@react-router/node": "8.3.0",
     "@react-router/serve": "8.3.0",
