@@ -2,7 +2,7 @@
 
 Question: [Does Knock hold up against Cadence?](https://github.com/tkielar-vitesse/cohort-005-project/issues/29)
 
-This branch is an integration prototype for the Notifications wayfinding map. Do not merge it into production. No vendor confirmation has been made.
+This branch is an integration prototype for the Notifications wayfinding map. Do not merge it into production. **Verdict: all four vendor-fit checks pass; confirm Knock.**
 
 ## Run
 
@@ -17,22 +17,37 @@ Only the public key, user ID and a 15-minute signed user token reach the browser
 
 ## Evidence (2026-11-11)
 
+The developer completed channel/workflow provisioning and committed the New Enrollment category assignment during the live exchange. [Captured live API evidence](knock-verification.json) includes completed workflow runs, preference evaluation events, message IDs and feed/count changes.
+
+| Required check | Result |
+| --- | --- |
+| Signed user authentication and DevUI switching | Pass: the selected Cadence session determines the RS256 subject; authenticated users get distinct feeds; cross-user feed reads and message writes return 403. |
+| Node SDK trigger of a catalogue Notification | Pass: replaying Sarah's existing Discussion Reply through the app action delivers to its Discussion Question author. A fresh replay to user `6` grows that user's feed from one item to two. |
+| Headless feed API | Pass: signed public-key requests list items and metadata; mark seen changes unseen count `2 → 1` while unread stays `2`; mark read changes unread `2 → 1`. |
+| Category × channel preferences with default-off and opt-in | Pass: initialize an isolated Instructor with New Enrollment feed/email/push off; a completed workflow suppresses delivery with `opted_out_of_categories`; signed feed-only opt-in delivers an item tagged `new-enrollment`; opting out again suppresses delivery while preserving the old item. An unrelated Discussion Reply workflow still delivers. |
+
+The preference spike uses **explicit initialization at first recipient sync**, not an environment default: the first `users.update` includes the category baseline; later syncs omit that baseline and preserve the user's opt-in. This proves vendor support for the required behavior. Production synchronization and initialization must be designed before implementation; do not blindly reset preferences on every sync or let a first trigger race ahead of initialization. Knock's unspecified preferences default to enabled.
+
+Run `node scripts/knock-preferences.prototype.mjs` to repeat the preference sequence against a fresh isolated Development recipient. It requires an active, committed, feed-only `cadence-prototype-new-enrollment` workflow with category `new-enrollment`, using the same feed channel and `{{ data.body }}` content. It waits for completed workflow runs and checks preference evaluation reasons, rather than inferring suppression from an empty feed alone. Recipients have no email/phone, and remain in Development for inspection.
+
+Initial setup exposed an uncommitted workflow category change: runtime messages reported `categories: []` and were delivered despite the stored category opt-out. Once the developer committed the assignment, the complete off/on/off sequence passed. This was configuration, not a vendor capability failure. Future setup checks must inspect the committed category, not only the draft visible in the dashboard.
+
+Earlier authentication/provisioning checks:
+
 - Switching the real DevUI session endpoint between Sarah and Emma produces RS256 tokens with subjects `2` and `5`, respectively. Each token is accepted by Knock's user endpoint (404 because these app users have not yet been identified in Knock). The Sarah token requesting Emma's endpoint is rejected with 403. This proves session-bound signing and token acceptance, not a populated feed switch.
 - The loader response contains neither the server API key nor the signing key.
 - An isolated throwaway Development recipient successfully round-trips category × channel preferences using the public key and signed token: `new-enrollment` has feed/email/push all false, then feed true with email/push still false. Both writes and reads return 200. The isolated recipient is left in Development for inspection; it has no email or phone number.
 - `npm run typecheck` passes.
 - `npm run test`: 806 pass, four fail. Two pre-existing request-logger tests invoke `/bin/sh`, unavailable on this Windows host; the same failures appear again under an existing `.worktrees/notification-delivery` checkout.
-- Wizard Bash syntax passes under Git Bash; shellcheck is unavailable. The interactive wizard has not been run by the agent.
+- Wizard Bash syntax passes under Git Bash; shellcheck is unavailable. The developer completed the interactive wizard.
 
-## Still required before resolving the decision
+## Boundaries of this decision
 
-- Dashboard channel/workflow provisioning: browser automation is unavailable in this session, and the existing runtime API key cannot configure workflows.
-- Trigger the real catalogue Notification through the SDK, wait for delivery, and verify the recipient's feed rather than treating trigger acceptance as delivery.
-- Exercise headless feed listing, unread count and seen/read writes against that delivered item, with signed public authentication. Verify switching users displays different feeds.
-- Establish an environment default (or an explicit application initialization rule) with New Enrollment category channels off, then demonstrate the default, opt-in override and effective workflow delivery/suppression. The preference API round-trip alone does not prove default-off enforcement. Use a separate Development New Enrollment workflow with the matching category if testing delivery.
-- Human interaction/review of this prototype, required by the wayfinder prototype ticket type.
+- This confirms Knock for the four checks in the decision ticket. It does not implement production Notifications.
+- Feed appearance, final channel choices, delivery retries/storage, recipient sync and production preference UX remain separate map decisions.
+- No email delivery or browser push was tested or provisioned here; those are outside this spike's acceptance checks.
 
-Provisioning/access gaps are inconclusive, not a failed vendor check. Keep Knock provisional and the ticket open. If a completed check exposes a vendor capability failure, reopen the vendor choice and evaluate Courier as specified in the decision ticket.
+Keep the prototype on its throwaway branch as the primary source; open no implementation PR from it. Courier fallback is not needed: no vendor capability check failed.
 
 ## Sources
 

@@ -1,0 +1,371 @@
+{
+  "verifiedAt": "2026-11-11T13:26:17.390Z",
+  "passed": true,
+  "delivery": {
+    "at": "2026-11-11T13:21:39.529Z",
+    "results": [
+      {
+        "name": "Signed feed listing and metadata",
+        "passed": true,
+        "detail": {
+          "entries": 1,
+          "meta": {
+            "total_count": 1,
+            "__typename": "FeedMetadata",
+            "unread_count": 1,
+            "unseen_count": 1
+          }
+        }
+      },
+      {
+        "name": "Cadence route triggers real Discussion Reply via Node SDK",
+        "passed": true,
+        "detail": {
+          "http": 200,
+          "response": "[{\"_1\":2},\"data\",{\"_3\":4,\"_5\":6,\"_7\":8},\"workflow_run_id\",\"ad99e843-4715-5105-85ec-4cbf449bf57e\",\"recipientId\",6,\"replyId\",9]\n"
+        }
+      },
+      {
+        "name": "Discussion Reply delivered to question author",
+        "passed": true,
+        "detail": {
+          "itemId": "3LxkqOAuLyK4UpiX99s0gmvakAL",
+          "source": {
+            "type": "workflow",
+            "key": "cadence-prototype-discussion-reply",
+            "version_id": "3df562db-7aa1-4dc5-b8c4-d54ba926b886",
+            "categories": [],
+            "step_ref": "in_app_feed_1",
+            "__typename": "NotificationSource"
+          },
+          "meta": {
+            "total_count": 2,
+            "__typename": "FeedMetadata",
+            "unread_count": 2,
+            "unseen_count": 2
+          }
+        }
+      },
+      {
+        "name": "DevUI-selected users receive distinct isolated feeds",
+        "passed": true,
+        "detail": {
+          "recipientItemId": "3LxkqOAuLyK4UpiX99s0gmvakAL",
+          "actorEntries": 0
+        }
+      },
+      {
+        "name": "Cross-user feed denied",
+        "passed": true,
+        "detail": {
+          "http": 403
+        }
+      },
+      {
+        "name": "Mark seen updates timestamp and unseen count",
+        "passed": true,
+        "detail": {
+          "before": {
+            "total_count": 2,
+            "__typename": "FeedMetadata",
+            "unread_count": 2,
+            "unseen_count": 2
+          },
+          "after": {
+            "total_count": 2,
+            "__typename": "FeedMetadata",
+            "unread_count": 2,
+            "unseen_count": 1
+          }
+        }
+      },
+      {
+        "name": "Mark read updates timestamp and unread count",
+        "passed": true,
+        "detail": {
+          "before": {
+            "total_count": 2,
+            "__typename": "FeedMetadata",
+            "unread_count": 2,
+            "unseen_count": 1
+          },
+          "after": {
+            "total_count": 2,
+            "__typename": "FeedMetadata",
+            "unread_count": 1,
+            "unseen_count": 1
+          }
+        }
+      },
+      {
+        "name": "Cross-user message update denied",
+        "passed": true,
+        "detail": {
+          "http": 403
+        }
+      }
+    ]
+  },
+  "preferences": {
+    "at": "2026-11-11T13:25:16.924Z",
+    "recipientId": "cadence-prototype-instructor-a479beca-c7ed-45a1-9636-83b953d1dc29",
+    "passed": true,
+    "results": [
+      {
+        "name": "New Instructor starts with New Enrollment channels off",
+        "passed": true,
+        "detail": {
+          "category": {
+            "push": false,
+            "email": false,
+            "in_app_feed": false
+          }
+        }
+      },
+      {
+        "name": "Completed default-off workflow suppresses feed delivery",
+        "passed": true,
+        "detail": {
+          "workflowRunId": "a4fbf2f3-85bb-5e21-b4fd-967e123627f4",
+          "status": "completed",
+          "errorCount": 0,
+          "events": [
+            {
+              "event": "preference_set_evaluated",
+              "status": "ok",
+              "step": "in_app_feed_1",
+              "data": {
+                "conditions_evaluations": [],
+                "opt_out_reason": "opted_out_of_categories",
+                "opted_out": true,
+                "preference_set": {
+                  "categories": {
+                    "new-enrollment": {
+                      "channel_types": {
+                        "email": false,
+                        "in_app_feed": false,
+                        "push": false
+                      }
+                    }
+                  },
+                  "channel_types": {
+                    "chat": true,
+                    "email": true,
+                    "http": true,
+                    "in_app_feed": true,
+                    "push": true,
+                    "sms": true
+                  },
+                  "channels": null,
+                  "commercial_subscribed": null,
+                  "workflows": null
+                }
+              }
+            },
+            {
+              "event": "step_skipped",
+              "status": "ok",
+              "step": "in_app_feed_1",
+              "data": {
+                "categories": [
+                  "new-enrollment"
+                ],
+                "channel_id": "18e8eaea-ebb5-47a6-9d9f-c726b6e50cbf",
+                "conditions": null,
+                "message": null,
+                "reason": "opted_out_of_categories"
+              }
+            }
+          ],
+          "feedItems": 0
+        }
+      },
+      {
+        "name": "Signed feed opt-in survives subsequent user sync",
+        "passed": true,
+        "detail": {
+          "channels": {
+            "push": false,
+            "email": false,
+            "in_app_feed": true
+          }
+        }
+      },
+      {
+        "name": "Opt-in delivers category-tagged New Enrollment Notification",
+        "passed": true,
+        "detail": {
+          "workflowRunId": "15fa1a42-81cb-5316-9003-9e86d62536da",
+          "status": "completed",
+          "errorCount": 0,
+          "events": [
+            {
+              "event": "preference_set_evaluated",
+              "status": "ok",
+              "step": "in_app_feed_1",
+              "data": {
+                "conditions_evaluations": [],
+                "opt_out_reason": null,
+                "opted_out": false,
+                "preference_set": {
+                  "categories": {
+                    "new-enrollment": {
+                      "channel_types": {
+                        "email": false,
+                        "in_app_feed": true,
+                        "push": false
+                      }
+                    }
+                  },
+                  "channel_types": {
+                    "chat": true,
+                    "email": true,
+                    "http": true,
+                    "in_app_feed": true,
+                    "push": true,
+                    "sms": true
+                  },
+                  "channels": null,
+                  "commercial_subscribed": null,
+                  "workflows": null
+                }
+              }
+            },
+            {
+              "event": "message_enqueued",
+              "status": "ok",
+              "step": "in_app_feed_1",
+              "data": {
+                "channel_type": "in_app_feed",
+                "message_id": "3LxlIqMFkFJMoxUg0r2XSTPNfyD"
+              }
+            }
+          ],
+          "feedItems": 1,
+          "itemId": "3LxlIqMFkFJMoxUg0r2XSTPNfyD",
+          "source": {
+            "type": "workflow",
+            "key": "cadence-prototype-new-enrollment",
+            "version_id": "e657df5d-c0d3-44d9-97ec-7b96e5e81705",
+            "categories": [
+              "new-enrollment"
+            ],
+            "step_ref": "in_app_feed_1",
+            "__typename": "NotificationSource"
+          }
+        }
+      },
+      {
+        "name": "Opting out again suppresses only the new Notification",
+        "passed": true,
+        "detail": {
+          "workflowRunId": "1c92866c-d96b-5b11-b9f4-5d4440cd42b1",
+          "status": "completed",
+          "errorCount": 0,
+          "events": [
+            {
+              "event": "preference_set_evaluated",
+              "status": "ok",
+              "step": "in_app_feed_1",
+              "data": {
+                "conditions_evaluations": [],
+                "opt_out_reason": "opted_out_of_categories",
+                "opted_out": true,
+                "preference_set": {
+                  "categories": {
+                    "new-enrollment": {
+                      "channel_types": {
+                        "email": false,
+                        "in_app_feed": false,
+                        "push": false
+                      }
+                    }
+                  },
+                  "channel_types": {
+                    "chat": true,
+                    "email": true,
+                    "http": true,
+                    "in_app_feed": true,
+                    "push": true,
+                    "sms": true
+                  },
+                  "channels": null,
+                  "commercial_subscribed": null,
+                  "workflows": null
+                }
+              }
+            },
+            {
+              "event": "step_skipped",
+              "status": "ok",
+              "step": "in_app_feed_1",
+              "data": {
+                "categories": [
+                  "new-enrollment"
+                ],
+                "channel_id": "18e8eaea-ebb5-47a6-9d9f-c726b6e50cbf",
+                "conditions": null,
+                "message": null,
+                "reason": "opted_out_of_categories"
+              }
+            }
+          ],
+          "feedItems": 1
+        }
+      },
+      {
+        "name": "New Enrollment opt-out leaves unrelated Notifications enabled",
+        "passed": true,
+        "detail": {
+          "workflowRunId": "48c294d4-59d0-5bcc-85f5-497c6d035e11",
+          "status": "completed",
+          "errorCount": 0,
+          "events": [
+            {
+              "event": "preference_set_evaluated",
+              "status": "ok",
+              "step": "in_app_feed_1",
+              "data": {
+                "conditions_evaluations": [],
+                "opt_out_reason": null,
+                "opted_out": false,
+                "preference_set": {
+                  "categories": {
+                    "new-enrollment": {
+                      "channel_types": {
+                        "email": false,
+                        "in_app_feed": false,
+                        "push": false
+                      }
+                    }
+                  },
+                  "channel_types": {
+                    "chat": true,
+                    "email": true,
+                    "http": true,
+                    "in_app_feed": true,
+                    "push": true,
+                    "sms": true
+                  },
+                  "channels": null,
+                  "commercial_subscribed": null,
+                  "workflows": null
+                }
+              }
+            },
+            {
+              "event": "message_enqueued",
+              "status": "ok",
+              "step": "in_app_feed_1",
+              "data": {
+                "channel_type": "in_app_feed",
+                "message_id": "3LxlJYMucy9H37uFfuFJLiLte7M"
+              }
+            }
+          ],
+          "feedItems": 2
+        }
+      }
+    ]
+  }
+}
