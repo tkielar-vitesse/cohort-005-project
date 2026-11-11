@@ -22,6 +22,8 @@ The expiry result conflicts with the expected expired-token rejection gate. [Kno
 
 Hosted checks also exposed two application/tooling corrections: the management preview API requires a string recipient reference, and an HTTP-success batch response alone does not confirm a read. The preview command now succeeds for all five templates. Dismissal now requires the requested ID and a nonempty `read_at` acknowledgment; otherwise the row/count remain with an error. Five additional network-free contracts cover empty, null, missing, foreign-ID and malformed acknowledgments.
 
+Final post-correction integration checks ran in the required order: `npm run typecheck` passed, then `npm run test` reported **496 passed and the same two existing Windows `/bin/sh` failures**. Standards review found no hard violations, and specification review found no new code defects; the expiry and browser gates remain open. The evidence summary's `domains.localChecks` describes the earlier domain run (491 passing tests); `finalLocalChecks` records this final suite.
+
 To reproduce the domain run deliberately, with new isolated recipients and sandboxed external delivery:
 
 ```powershell

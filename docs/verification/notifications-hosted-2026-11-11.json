@@ -572,5 +572,21 @@
     "beforeUnreadCount": 15,
     "afterUnreadCount": 14,
     "targetRemovedAfterConfirmation": true
+  },
+  "finalLocalChecks": {
+    "checkedAt": "2026-11-11T17:22:40.359Z",
+    "order": ["npm run typecheck", "npm run test"],
+    "typecheck": "passed",
+    "testsPassed": 496,
+    "testsFailed": 2,
+    "failures": "Existing request-logger Windows spawnSync /bin/sh ENOENT cases at agents.test.ts lines1087 and1118",
+    "review": {
+      "hardStandardsViolations": 0,
+      "newCodeSpecDefects": 0,
+      "openReleaseGates": [
+        "Hosted expired-token rejection",
+        "Deliberate browser verification"
+      ]
+    }
   }
 }
