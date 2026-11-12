@@ -68,6 +68,8 @@ npm run dev
 
 The app will be running at `http://localhost:5173`. Use the floating DevUI panel to switch between users.
 
+`npm run dev` starts both the app and notification worker; Ctrl+C stops both. Configure Knock Development credentials in `.env` before starting. The app saves notification submissions, and the worker sends them to Knock with email delivery sandboxed. See [notification worker setup](docs/notifications-worker.md) for configuration and retry behavior.
+
 ### What `fork` does
 
 `npx ai-hero-cli fork` turns your clone into your own repo:
@@ -88,7 +90,8 @@ You don't need these yet, but you'll be asked for them along the way. Both have 
 
 | Command                      | Description                                  |
 | ---------------------------- | -------------------------------------------- |
-| `npm run dev`                | Start the development server                 |
+| `npm run dev`                | Start the development server and notification worker |
+| `npm run notifications:worker` | Process pending notifications continuously |
 | `npm run build`              | Build for production                         |
 | `npm run test`               | Run tests with Vitest                        |
 | `npm run test:watch`         | Run tests in watch mode                      |
