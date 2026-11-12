@@ -1,3 +1,4 @@
+import { toggleBookmark, saveNote, getBookmark, getNote } from "./saved.server";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { createTestDb, seedBaseData } from "~/test/setup";
@@ -274,12 +275,16 @@ describe("approving a Refund Request", () => {
         status: LessonProgressStatus.Completed,
       })
       .run();
+    toggleBookmark(db, base.user.id, lessonIds[0]);
+    saveNote(db, base.user.id, lessonIds[0], "Keep this note", NOW);
     const id = await raise(purchase.id, base.user.id);
 
     const result = await approveRefundRequest(db, id, platformAdmin.id, null, NOW, notifications);
 
     expect(result.ok).toBe(true);
     expect(isEnrolled(base.user.id)).toBe(false);
+    expect(getBookmark(db, base.user.id, lessonIds[0])).toBeDefined();
+    expect(getNote(db, base.user.id, lessonIds[0])?.body).toBe("Keep this note");
     expect(
       db
         .select()
