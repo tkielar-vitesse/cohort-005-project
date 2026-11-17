@@ -31,6 +31,6 @@ export const writeJson = (filename: string, value: unknown): void => {
 export const claudeAgent = () =>
   sandcastle.codex("gpt-6.1-sol", {
     env: {
-      CODEX_ACCESS_TOKEN: required("OPENAI_API_KEY"),
+      OPENAI_API_KEY: required("OPENAI_API_KEY"),
     },
   });
