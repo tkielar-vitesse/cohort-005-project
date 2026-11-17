@@ -23,14 +23,14 @@ export const writeJson = (filename: string, value: unknown): void => {
 
 // The one agent every factory workflow runs. It authenticates with a Claude
 // subscription. To bill the API instead, pass ANTHROPIC_API_KEY here and in
-// the workflow's env in place of OPENAI_API_KEY.
+// the workflow's env in place of CLAUDE_CODE_OAUTH_TOKEN.
 //
 // Sandcastle runs every agent with its permission checks skipped, so it can
 // use any tool. Claude Code also accepts `permissionMode: "auto"` here for
 // AI-mediated approvals instead (Claude only; other agents don't offer it).
 export const claudeAgent = () =>
-  sandcastle.codex("gpt-6.1-sol", {
+  sandcastle.claudeCode("claude-opus-5-5", {
     env: {
-      OPENAI_API_KEY: required("OPENAI_API_KEY"),
+      CLAUDE_CODE_OAUTH_TOKEN: required("CLAUDE_CODE_OAUTH_TOKEN"),
     },
   });
