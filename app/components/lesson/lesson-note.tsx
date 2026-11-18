@@ -26,7 +26,7 @@ export function LessonNote({ note }: { note: SavedNote }) {
 
   return (
     <Card className="mb-8">
-      <CardContent className="p-6">
+      <CardContent>
         <NoteHeader />
         <fetcher.Form method="post" className="space-y-2">
           <input type="hidden" name="intent" value="save-note" />
