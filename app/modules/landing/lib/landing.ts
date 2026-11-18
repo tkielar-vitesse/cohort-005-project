@@ -1,5 +1,5 @@
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { count, desc, eq, inArray } from "drizzle-orm";
+import { count, countDistinct, desc, eq, inArray } from "drizzle-orm";
 import * as schema from "~/db/schema";
 import { categories, courses, lessons, modules, users } from "~/db/schema";
 
@@ -77,8 +77,12 @@ function countPublishedLessons(db: Db) {
   return row.n;
 }
 
-function countCategories(db: Db) {
-  const [row] = db.select({ n: count() }).from(categories).all();
+function countCategoriesWithPublishedCourses(db: Db) {
+  const [row] = db
+    .select({ n: countDistinct(courses.categoryId) })
+    .from(courses)
+    .where(published)
+    .all();
   return row.n;
 }
 
@@ -96,6 +100,6 @@ export function getLandingPage(db: Db): LandingPage {
     })),
     totalCourses: countPublishedCourses(db),
     totalLessons: countPublishedLessons(db),
-    totalCategories: countCategories(db),
+    totalCategories: countCategoriesWithPublishedCourses(db),
   };
 }

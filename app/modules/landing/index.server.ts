@@ -12,7 +12,8 @@ export function createLanding(database: Db) {
     /**
      * The newest published courses (at most three, each with its lesson
      * count) and the totals the hero shows. Drafts and archived courses are
-     * left out of every figure.
+     * left out of every figure, and a category counts only once it has a
+     * published course.
      */
     get() {
       return getLandingPage(database);

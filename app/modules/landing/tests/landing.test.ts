@@ -109,7 +109,7 @@ describe("landing", () => {
     ]);
   });
 
-  it("counts only published courses and their lessons", () => {
+  it("counts only published courses, their lessons and their categories", () => {
     const published = addCourse("Published", "2026-01-01T00:00:00.000Z");
     const draft = addCourse(
       "Draft",
@@ -124,7 +124,7 @@ describe("landing", () => {
     expect(getLanding()).toMatchObject({
       totalCourses: 2,
       totalLessons: 6,
-      totalCategories: 2,
+      totalCategories: 1,
     });
   });
 
@@ -145,6 +145,7 @@ describe("landing", () => {
       featuredCourses: [],
       totalCourses: 0,
       totalLessons: 0,
+      totalCategories: 0,
     });
   });
 });
