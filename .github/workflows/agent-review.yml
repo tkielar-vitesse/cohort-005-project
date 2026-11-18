@@ -184,6 +184,7 @@ jobs:
           fi
 
       - name: Review the pull request
+        id: review
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           OUTPUT_DIR: ${{ runner.temp }}
@@ -254,29 +255,23 @@ jobs:
           FALLBACK_URL: ${{ steps.fallback.outputs.url }}
         run: |
           set -euo pipefail
-          [ -s /tmp/review-verdict.md ] || \
-            echo "The review run produced no verdict. See the logs. Re-add \`agent:review\` to retry." \
-              > /tmp/review-verdict.md
+          summary="$RUNNER_TEMP/review-summary.md"
+          if [ ! -s "$summary" ]; then
+            echo "The review run produced no verdict. See the logs. Re-add \`agent:review\` to retry." > "$summary"
+          fi
           if [ "$FALLBACK" = "true" ]; then
             {
               echo ""
               echo "The push of this review's fixes to \`$BRANCH\` was **rejected**: the branch moved during this run. Nothing was force-pushed."
               echo "The fixes are on \`$FALLBACK_BRANCH\`${FALLBACK_URL:+, opened as ${FALLBACK_URL}}. Labelled \`agent:blocked\`: keep one of the two PRs."
-            } >> /tmp/review-verdict.md
+            } >> "$summary"
           fi
-          {
-            echo ""
-            echo "---"
-            echo ""
-            echo "Reviewed by the review workflow — [logs](${RUN_URL}). This run"
-            echo "saw the diff, the standards and the ticket, and nothing else."
-          } >> /tmp/review-verdict.md
-          # Uploads the agent's screenshots and swaps each /tmp/evidence path
-          # in the body for its URL. nullglob: none means no --attach.
+          printf '\n[Review run](%s)\n' "$RUN_URL" >> "$summary"
+          # Uploads only the captioned screenshots staged by the review.
           shopt -s nullglob
           attach=()
-          for png in /tmp/evidence/*.png; do attach+=(--attach "$png"); done
-          gh pr comment "$PR_NUMBER" --body-file /tmp/review-verdict.md "${attach[@]}"
+          for png in "$RUNNER_TEMP"/review-evidence/*.png; do attach+=(--attach "$png"); done
+          gh pr comment "$PR_NUMBER" --body-file "$summary" "${attach[@]}"
 
       - name: Post the inline comments
         # One review, event COMMENT, with a comment on each line the agent
@@ -297,21 +292,12 @@ jobs:
             --input "$review" --silent
 
       - name: Mark the pull request ready
-        # No `always()` here. If the agent broke, nobody has read the PR, so
-        # it stays a draft. And it goes ready only when a real verdict was
-        # posted: the fallback note above is not a review. The verdict's own
-        # `## Standards:` heading is how we tell. Pass or fail does not
-        # matter. This step runs nothing the agent or the PR wrote: it reads
-        # the verdict as text and calls `gh`.
+        # Success means the runner produced a validated review and the
+        # reporting steps published it. Either verdict can go ready.
+        if: steps.review.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.FACTORY_PAT }}
-        run: |
-          set -euo pipefail
-          if grep -q '## Standards:' /tmp/review-verdict.md; then
-            gh pr ready "$PR_NUMBER"
-          else
-            echo "No verdict, so the PR stays a draft."
-          fi
+        run: gh pr ready "$PR_NUMBER"
 
       - name: Mark blocked on failure or a rejected push
         # A rejected push is blocked too: the fixes are on another branch, and

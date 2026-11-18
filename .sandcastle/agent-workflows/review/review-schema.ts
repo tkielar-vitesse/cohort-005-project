@@ -1,9 +1,42 @@
 import { z } from "zod/v4";
 
-// The findings the review left unfixed. The workflow posts each one as an
-// inline comment on the pull request, on its file and line.
+const verdict = z.enum(["PASS", "CHANGES REQUESTED"]);
+const shortLine = z.string().trim().min(1).max(200).regex(/^[^\r\n]+$/);
+
 export const reviewSchema = z
   .strictObject({
+    standards: verdict,
+    spec: z.enum(["PASS", "CHANGES REQUESTED", "NO SPEC AVAILABLE"]),
+    fixes: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .nullable()
+      .describe(
+        "A short plain-text diff sketch of the committed review fixes, without code fences. Null when no fixes were committed."
+      ),
+    checks: shortLine.describe(
+      "One line with actual verification results, including checks that were skipped or blocked."
+    ),
+    evidence: z
+      .array(
+        z.strictObject({
+          filename: z
+            .string()
+            .regex(/^[a-zA-Z0-9_-]+\.png$/)
+            .describe(
+              "The PNG filename in /tmp/evidence, without its directory."
+            ),
+          caption: shortLine.describe(
+            "Name the revision or state and the visible result this screenshot demonstrates."
+          ),
+        })
+      )
+      .max(4)
+      .describe(
+        "Up to two before-and-after pairs demonstrating visual review fixes, in reading order."
+      ),
     comments: z
       .array(
         z.strictObject({
@@ -28,4 +61,4 @@ export const reviewSchema = z
       )
       .describe("One entry per finding you left unfixed. Empty is fine."),
   })
-  .describe("The review's inline comments.");
+  .describe("The review's compact summary and inline comments.");
